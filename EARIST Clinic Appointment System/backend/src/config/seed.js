@@ -32,10 +32,18 @@ function seedDatabase() {
   const insertAppointment = db.prepare(`
     INSERT INTO appointments (
       reference_code, patient_type, patient_name, id_number, department, course, year_section,
-      age, gender, address, contact_number, symptoms, symptom_severity, allergies, medical_history,
-      assistant_id, appointment_date, time_slot, service_type, status, reason, diagnosis, prescription, dosage_instructions
+      age, gender, address, contact_number, patient_email, symptoms, symptom_severity, allergies, medical_history,
+      assistant_id, appointment_date, time_slot, service_type, status, email_status, email_sent_at,
+      reason, diagnosis, prescription, dosage_instructions
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const insertEmailNotif = db.prepare(`
+    INSERT INTO email_notifications (
+      appointment_id, recipient_email, subject, reference_code, template_name, status, sent_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
 
   db.exec('BEGIN TRANSACTION');
@@ -103,7 +111,7 @@ function seedDatabase() {
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
     // Student Appointment (Ongoing right now)
-    insertAppointment.run(
+    const appt1 = insertAppointment.run(
       'EAR-2026-A109',
       'student',
       'John Christian Doe',
@@ -115,6 +123,7 @@ function seedDatabase() {
       'Male',
       '123 Pureza St., Sampaloc, Manila',
       '0920-555-7788',
+      'john.doe.student@earist.edu.ph',
       'Severe headache, Dizziness, High fever',
       'Moderate',
       'Penicillin',
@@ -124,14 +133,26 @@ function seedDatabase() {
       '09:00 AM - 09:30 AM',
       'General Medical Consultation',
       'OnGoing',
+      'Sent',
+      today + ' 08:05:00',
       'Feeling dizzy and high temperature since morning lecture',
       'Tension headache secondary to dehydration & acute febrile illness',
       'Paracetamol 500mg, Oral Rehydration Salts',
       'Take 1 tab every 6 hours as needed for fever/headache. Complete bed rest today.'
     );
 
+    insertEmailNotif.run(
+      appt1.lastInsertRowid,
+      'john.doe.student@earist.edu.ph',
+      'EARIST Clinic Appointment Confirmation - Tracking ID: EAR-2026-A109',
+      'EAR-2026-A109',
+      'appointment_tracking_id',
+      'Sent',
+      today + ' 08:05:00'
+    );
+
     // Student Appointment (Approved for tomorrow)
-    insertAppointment.run(
+    const appt2 = insertAppointment.run(
       'EAR-2026-B244',
       'student',
       'Jane Kimberly Smith',
@@ -143,6 +164,7 @@ function seedDatabase() {
       'Female',
       '456 Nagtahan St., Manila',
       '0921-888-9900',
+      'jane.smith.student@earist.edu.ph',
       'Toothache, Gum swelling, Sensitivity to cold drinks',
       'Moderate',
       'None',
@@ -152,14 +174,26 @@ function seedDatabase() {
       '10:00 AM - 10:30 AM',
       'Annual Dental Cleaning & Oral Checkup',
       'Approved',
+      'Pending',
+      null,
       'Severe throbbing pain in lower molar',
       null,
       null,
       null
     );
 
+    insertEmailNotif.run(
+      appt2.lastInsertRowid,
+      'jane.smith.student@earist.edu.ph',
+      'EARIST Clinic Appointment Confirmation - Tracking ID: EAR-2026-B244',
+      'EAR-2026-B244',
+      'appointment_tracking_id',
+      'Pending',
+      null
+    );
+
     // Faculty Appointment (Completed yesterday)
-    insertAppointment.run(
+    const appt3 = insertAppointment.run(
       'EAR-2026-C881',
       'faculty_staff',
       'Prof. Marcus Reyes',
@@ -171,6 +205,7 @@ function seedDatabase() {
       'Male',
       'Mendiola St., San Miguel, Manila',
       '0917-333-4455',
+      'm.reyes@earist.edu.ph',
       'Blood pressure monitoring, Mild chest tightness',
       'Mild',
       'Aspirin',
@@ -180,10 +215,22 @@ function seedDatabase() {
       '02:00 PM - 02:30 PM',
       'Medical Physical Clearance',
       'Completed',
+      'Sent',
+      yesterday + ' 13:10:00',
       'Annual faculty medical clearance renewal',
       'Blood pressure stabilized at 125/82. Cleared for academic teaching duties.',
       'Amlodipine 5mg (continue maintenance), B-Complex vitamins',
       'Take maintenance medication daily at morning. Recheck BP next month.'
+    );
+
+    insertEmailNotif.run(
+      appt3.lastInsertRowid,
+      'm.reyes@earist.edu.ph',
+      'EARIST Clinic Appointment Confirmation - Tracking ID: EAR-2026-C881',
+      'EAR-2026-C881',
+      'appointment_tracking_id',
+      'Sent',
+      yesterday + ' 13:10:00'
     );
 
     db.exec('COMMIT');

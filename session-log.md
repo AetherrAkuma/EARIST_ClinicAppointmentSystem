@@ -14,6 +14,12 @@ Decisions:
 - Built modern app in 'EARIST Clinic Appointment System' folder using Node.js Express REST API and React 19 + Vite.
 - Adopted Node.js built-in node:sqlite for zero-config portable database with auto-seeding.
 - Designed EARIST Maroon/Gold theme with Framer Motion spring transitions and Lucide icons.
-- Created unified start.bat with dependency auto-install and dual server orchestration.
-Rejected: Using better-sqlite3 native C++ addon due to Node v26 native compilation incompatibility.
+## 2026-10-22 15:35 [saved]
+Goal: Add email send tracking placeholders to database schema and generate complete data dictionary
+Decisions:
+- Added `patient_email`, `email_status`, and `email_sent_at` placeholder columns to `appointments` table.
+- Added dedicated `email_notifications` outbox queue table to track dispatched tracking reference codes, templates, status, and timestamps.
+- Executed non-destructive migrations in `db.js` and updated `seed.js` with sample student/faculty notification entries.
+- Generated comprehensive Data Dictionary (`DATA_DICTIONARY.md`) documenting all 6 tables, types, constraints, ERD, and domain values.
 Open: None
+

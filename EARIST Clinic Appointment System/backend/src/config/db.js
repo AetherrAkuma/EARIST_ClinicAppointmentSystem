@@ -73,6 +73,7 @@ function initSchema(database) {
       gender TEXT,
       address TEXT,
       contact_number TEXT NOT NULL,
+      patient_email TEXT,
       symptoms TEXT,
       symptom_severity TEXT CHECK(symptom_severity IN ('Mild', 'Moderate', 'Severe')) DEFAULT 'Mild',
       allergies TEXT,
@@ -82,6 +83,8 @@ function initSchema(database) {
       time_slot TEXT NOT NULL,
       service_type TEXT NOT NULL,
       status TEXT CHECK(status IN ('Pending', 'Approved', 'OnGoing', 'Completed', 'Cancelled')) DEFAULT 'Approved',
+      email_status TEXT CHECK(email_status IN ('Pending', 'Sent', 'Failed')) DEFAULT 'Pending',
+      email_sent_at DATETIME,
       reason TEXT,
       diagnosis TEXT,
       prescription TEXT,
@@ -89,7 +92,38 @@ function initSchema(database) {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (assistant_id) REFERENCES assistants(assistant_id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS email_notifications (
+      notification_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      appointment_id INTEGER NOT NULL,
+      recipient_email TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      reference_code TEXT NOT NULL,
+      template_name TEXT DEFAULT 'appointment_tracking_id',
+      status TEXT CHECK(status IN ('Pending', 'Sent', 'Failed')) DEFAULT 'Pending',
+      error_message TEXT,
+      sent_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (appointment_id) REFERENCES appointments(appointment_id) ON DELETE CASCADE
+    );
   `);
+
+  // Safe schema migrations for existing database files
+  try {
+    database.exec('ALTER TABLE appointments ADD COLUMN patient_email TEXT;');
+  } catch (e) {
+    // Column already exists
+  }
+  try {
+    database.exec("ALTER TABLE appointments ADD COLUMN email_status TEXT CHECK(email_status IN ('Pending', 'Sent', 'Failed')) DEFAULT 'Pending';");
+  } catch (e) {
+    // Column already exists
+  }
+  try {
+    database.exec('ALTER TABLE appointments ADD COLUMN email_sent_at DATETIME;');
+  } catch (e) {
+    // Column already exists
+  }
 }
 
 module.exports = { getDb };

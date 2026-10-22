@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>EARIST Clinic Appointment System - Database Data Dictionary</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 14mm 12mm 14mm 12mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #0F172A;
+      background: #FFFFFF;
+      margin: 0;
+      padding: 0;
+      font-size: 11.5px;
+      line-height: 1.45;
+    }
+
+    .header-banner {
+      background: linear-gradient(135deg, #6B1118 0%, #881337 100%);
+      color: #FFFFFF;
+      padding: 20px 24px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border-bottom: 4px solid #F59E0B;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-left h1 {
+      margin: 0 0 4px 0;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      color: #FFFFFF;
+    }
+
+    .header-left .subtitle {
+      margin: 0;
+      font-size: 12px;
+      color: #FDE68A;
+      font-weight: 500;
+    }
+
+    .header-meta {
+      text-align: right;
+      font-size: 10.5px;
+      color: #F8FAFC;
+      line-height: 1.5;
+    }
+
+    .meta-badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 10px;
+      margin-top: 4px;
+    }
+
+    .overview-card {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 22px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .overview-item {
+      border-right: 1px solid #E2E8F0;
+      padding-right: 12px;
+    }
+
+    .overview-item:last-child {
+      border-right: none;
+      padding-right: 0;
+    }
+
+    .overview-label {
+      font-size: 10px;
+      color: #64748B;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+    }
+
+    .overview-val {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1E293B;
+    }
+
+    .table-section {
+      margin-bottom: 24px;
+      page-break-inside: avoid;
+    }
+
+    .table-header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #F1F5F9;
+      border-left: 5px solid #881337;
+      padding: 8px 12px;
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 8px;
+    }
+
+    .table-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: #1E293B;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .table-title code {
+      font-family: "JetBrains Mono", Consolas, Monaco, monospace;
+      background: #E2E8F0;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #7B1113;
+      font-size: 13px;
+    }
+
+    .table-desc {
+      font-size: 11px;
+      color: #475569;
+      margin-top: 2px;
+      margin-bottom: 6px;
+      font-style: italic;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 6px;
+      font-size: 10.5px;
+      background: #FFFFFF;
+      border: 1px solid #CBD5E1;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    thead th {
+      background: #334155;
+      color: #FFFFFF;
+      font-weight: 700;
+      text-align: left;
+      padding: 6px 8px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      border-right: 1px solid #475569;
+    }
+
+    thead th:last-child {
+      border-right: none;
+    }
+
+    tbody td {
+      padding: 5.5px 8px;
+      border-bottom: 1px solid #E2E8F0;
+      border-right: 1px solid #F1F5F9;
+      vertical-align: top;
+      color: #334155;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #F8FAFC;
+    }
+
+    tbody tr:hover {
+      background: #F1F5F9;
+    }
+
+    td.col-name code {
+      font-family: "JetBrains Mono", Consolas, Monaco, monospace;
+      font-weight: 700;
+      color: #0F172A;
+      font-size: 10.5px;
+      background: #F1F5F9;
+      padding: 1px 4px;
+      border-radius: 3px;
+      border: 1px solid #E2E8F0;
+      display: inline-block;
+    }
+
+    td.col-type {
+      font-family: "JetBrains Mono", Consolas, Monaco, monospace;
+      font-weight: 600;
+      font-size: 10px;
+      color: #1E293B;
+      white-space: nowrap;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 8.5px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin-right: 3px;
+      margin-bottom: 2px;
+    }
+
+    .badge-pk { background: #7B1113; color: #FFFFFF; }
+    .badge-fk { background: #1D4ED8; color: #FFFFFF; }
+    .badge-uq { background: #6D28D9; color: #FFFFFF; }
+    .badge-check { background: #0F766E; color: #FFFFFF; }
+    .badge-new { background: #D97706; color: #FFFFFF; }
+    .badge-null { background: #E2E8F0; color: #475569; }
+    .badge-notnull { background: #DC2626; color: #FFFFFF; font-size: 8px; }
+
+    .sample-val {
+      font-family: "JetBrains Mono", Consolas, Monaco, monospace;
+      font-size: 9.5px;
+      color: #475569;
+      word-break: break-all;
+    }
+
+    .highlight-row {
+      background: #FEF3C7 !important;
+      border-left: 3px solid #D97706;
+    }
+
+    .page-break {
+      page-break-before: always;
+    }
+
+    .rules-card {
+      background: #F8FAFC;
+      border: 1px solid #CBD5E1;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-top: 10px;
+    }
+
+    .rules-card h3 {
+      margin: 0 0 6px 0;
+      font-size: 11.5px;
+      color: #7B1113;
+      font-weight: 700;
+    }
+
+    .rules-card ul {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 10px;
+      color: #334155;
+    }
+
+    .rules-card li {
+      margin-bottom: 3px;
+    }
+
+    .footer {
+      margin-top: 20px;
+      padding-top: 10px;
+      border-top: 1px solid #E2E8F0;
+      display: flex;
+      justify-content: space-between;
+      color: #64748B;
+      font-size: 9.5px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header Banner -->
+  <div class="header-banner">
+    <div class="header-left">
+      <h1>EULOGIO "AMANG" RODRIGUEZ INSTITUTE OF SCIENCE AND TECHNOLOGY</h1>
+      <div class="subtitle">Campus Health Services Department &bull; Clinic Appointment &amp; Triage System</div>
+      <div style="font-size: 13px; font-weight: 700; color: #FFFFFF; margin-top: 6px;">
+        Database Architecture &amp; Complete Data Dictionary (with Data Type Lengths)
+      </div>
+    </div>
+    <div class="header-meta">
+      <div><strong>Engine:</strong> SQLite (<code>node:sqlite</code>)</div>
+      <div><strong>Database:</strong> <code>earist_clinic.db</code></div>
+      <div><strong>Version:</strong> 1.2 (Type Lengths &amp; Outbox Specs)</div>
+      <div class="meta-badge">OFFICIAL TECHNICAL SPECIFICATION</div>
+    </div>
+  </div>
+
+  <!-- Database Summary Metrics -->
+  <div class="overview-card">
+    <div class="overview-item">
+      <div class="overview-label">Total Tables</div>
+      <div class="overview-val">6 Relational Tables</div>
+    </div>
+    <div class="overview-item">
+      <div class="overview-label">Tracking Mechanism</div>
+      <div class="overview-val">Reference Code (<code>reference_code</code>)</div>
+    </div>
+    <div class="overview-item">
+      <div class="overview-label">Notification Outbox</div>
+      <div class="overview-val">Automated Email Dispatch Log</div>
+    </div>
+    <div class="overview-item">
+      <div class="overview-label">Integrity Enforced</div>
+      <div class="overview-val">PRAGMA Foreign Keys (CASCADE)</div>
+    </div>
+  </div>
+
+  <!-- 1. USERS TABLE -->
+  <div class="table-section">
+    <div class="table-header-bar">
+      <div class="table-title">1. Table: <code>users</code></div>
+      <span class="badge" style="background:#334155; color:#fff;">Authentication &amp; Staff Roles</span>
+    </div>
+    <div class="table-desc">Stores authentication credentials, authorization roles, and account records for clinic personnel (Doctors, Attendants, Administrators).</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 16%;">Column Name</th>
+          <th style="width: 15%;">Data Type (Length)</th>
+          <th style="width: 7%;">Null?</th>
+          <th style="width: 18%;">Constraints</th>
+          <th style="width: 11%;">Default</th>
+          <th style="width: 33%;">Description / Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="col-name"><code>id</code></td>
+          <td class="col-type">INTEGER (11)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><span class="badge badge-pk">PK</span> AUTOINCREMENT</td>
+          <td><em>None</em></td>
+          <td>Unique internal user identifier.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>email</code></td>
+          <td class="col-type">VARCHAR (150)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><span class="badge badge-uq">UNIQUE</span></td>
+          <td><em>None</em></td>
+          <td>Institutional EARIST login email address.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>password_hash</code></td>
+          <td class="col-type">VARCHAR (255)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><em>None</em></td>
+          <td><em>None</em></td>
+          <td>Bcrypt password hash (salt factor 10).</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>role</code></td>
+          <td class="col-type">VARCHAR (20)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><span class="badge badge-check">CHECK</span> ('assistant', 'admin')</td>
+          <td><em>None</em></td>
+          <td>User role: <code>assistant</code> (Doctor/Nurse) or <code>admin</code> (Director).</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>first_name</code></td>
+          <td class="col-type">VARCHAR (100)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><em>None</em></td>
+          <td><em>None</em></td>
+          <td>Given name of the practitioner.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>last_name</code></td>
+          <td class="col-type">VARCHAR (100)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><em>None</em></td>
+          <td><em>None</em></td>
+          <td>Surname of the practitioner.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>id_number</code></td>
+          <td class="col-type">VARCHAR (30)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>NULL</td>
+          <td>Faculty/Staff ID number (e.g. <code>MED-2026-008</code>).</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>contact_number</code></td>
+          <td class="col-type">VARCHAR (20)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>NULL</td>
+          <td>Mobile contact number or clinic extension.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>created_at</code></td>
+          <td class="col-type">DATETIME (19)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>CURRENT_TIMESTAMP</td>
+          <td>Account creation timestamp (YYYY-MM-DD HH:MM:SS).</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 2. ASSISTANTS TABLE -->
+  <div class="table-section">
+    <div class="table-header-bar">
+      <div class="table-title">2. Table: <code>assistants</code></div>
+      <span class="badge" style="background:#334155; color:#fff;">Doctor Roster &amp; Profiles</span>
+    </div>
+    <div class="table-desc">Professional physician and attendant profiles. Maps 1:1 with corresponding <code>users</code> entry.</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 16%;">Column Name</th>
+          <th style="width: 15%;">Data Type (Length)</th>
+          <th style="width: 7%;">Null?</th>
+          <th style="width: 18%;">Constraints</th>
+          <th style="width: 11%;">Default</th>
+          <th style="width: 33%;">Description / Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="col-name"><code>assistant_id</code></td>
+          <td class="col-type">INTEGER (11)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><span class="badge badge-pk">PK</span> AUTOINCREMENT</td>
+          <td><em>None</em></td>
+          <td>Unique primary key for clinic practitioner.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>user_id</code></td>
+          <td class="col-type">INTEGER (11)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><span class="badge badge-fk">FK</span> <span class="badge badge-uq">UNIQUE</span> &rarr; users(id)</td>
+          <td><em>None</em></td>
+          <td>Foreign key referencing <code>users(id)</code> ON DELETE CASCADE.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>specialization</code></td>
+          <td class="col-type">VARCHAR (150)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>NULL</td>
+          <td>Specialty (e.g. General Physician, Dental Health).</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>room_number</code></td>
+          <td class="col-type">VARCHAR (50)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>NULL</td>
+          <td>Designated consultation room (e.g. <code>Rm 101</code>).</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>is_on_duty</code></td>
+          <td class="col-type">TINYINT (1)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td>CHECK (0 or 1)</td>
+          <td>1</td>
+          <td>Current active shift status (1 = Active, 0 = Off).</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>is_active</code></td>
+          <td class="col-type">TINYINT (1)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td>CHECK (0 or 1)</td>
+          <td>1</td>
+          <td>Active roster status (1 = Active, 0 = Inactive).</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- 3. DOCTOR SCHEDULES TABLE -->
+  <div class="table-section">
+    <div class="table-header-bar">
+      <div class="table-title">3. Table: <code>doctor_schedules</code></div>
+      <span class="badge" style="background:#334155; color:#fff;">Weekly Duty Shift Windows</span>
+    </div>
+    <div class="table-desc">Recurring weekly schedule templates that define standard consultation shifts and max capacity per slot.</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 16%;">Column Name</th>
+          <th style="width: 15%;">Data Type (Length)</th>
+          <th style="width: 7%;">Null?</th>
+          <th style="width: 18%;">Constraints</th>
+          <th style="width: 11%;">Default</th>
+          <th style="width: 33%;">Description / Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="col-name"><code>schedule_id</code></td>
+          <td class="col-type">INTEGER (11)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><span class="badge badge-pk">PK</span> AUTOINCREMENT</td>
+          <td><em>None</em></td>
+          <td>Unique recurring schedule identifier.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>assistant_id</code></td>
+          <td class="col-type">INTEGER (11)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><span class="badge badge-fk">FK</span> &rarr; assistants</td>
+          <td><em>None</em></td>
+          <td>Foreign key referencing <code>assistants(assistant_id)</code>.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>day_of_week</code></td>
+          <td class="col-type">VARCHAR (15)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><em>None</em></td>
+          <td><em>None</em></td>
+          <td>Day of week (<code>Monday</code> &ndash; <code>Friday</code>).</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>start_time</code></td>
+          <td class="col-type">VARCHAR (10)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><em>None</em></td>
+          <td><em>None</em></td>
+          <td>Duty start time in 24-hr format (e.g. <code>08:00</code>).</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>end_time</code></td>
+          <td class="col-type">VARCHAR (10)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><em>None</em></td>
+          <td><em>None</em></td>
+          <td>Duty end time in 24-hr format (e.g. <code>12:00</code>).</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>max_slots</code></td>
+          <td class="col-type">INTEGER (5)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>15</td>
+          <td>Maximum total consultation capacity per duty block.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>is_available</code></td>
+          <td class="col-type">TINYINT (1)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td>CHECK (0 or 1)</td>
+          <td>1</td>
+          <td>Availability toggle (1 = Open for bookings, 0 = Closed).</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 4. DOCTOR CUSTOM AVAILABILITY -->
+  <div class="table-section">
+    <div class="table-header-bar">
+      <div class="table-title">4. Table: <code>doctor_custom_availability</code></div>
+      <span class="badge" style="background:#334155; color:#fff;">Date Overrides &amp; Leaves</span>
+    </div>
+    <div class="table-desc">Calendar overrides for specific dates (leaves, official seminars, holiday blackout dates).</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 16%;">Column Name</th>
+          <th style="width: 15%;">Data Type (Length)</th>
+          <th style="width: 7%;">Null?</th>
+          <th style="width: 18%;">Constraints</th>
+          <th style="width: 11%;">Default</th>
+          <th style="width: 33%;">Description / Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="col-name"><code>id</code></td>
+          <td class="col-type">INTEGER (11)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><span class="badge badge-pk">PK</span> AUTOINCREMENT</td>
+          <td><em>None</em></td>
+          <td>Unique override entry identifier.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>assistant_id</code></td>
+          <td class="col-type">INTEGER (11)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><span class="badge badge-fk">FK</span> &rarr; assistants</td>
+          <td><em>None</em></td>
+          <td>Foreign key referencing <code>assistants(assistant_id)</code>.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>date</code></td>
+          <td class="col-type">VARCHAR (10)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><span class="badge badge-uq">UNIQUE(asst, date)</span></td>
+          <td><em>None</em></td>
+          <td>Calendar date formatted as <code>YYYY-MM-DD</code>.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>is_available</code></td>
+          <td class="col-type">TINYINT (1)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td>CHECK (0 or 1)</td>
+          <td>1</td>
+          <td>0 = Doctor unavailable/on leave; 1 = Custom hours.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>custom_times</code></td>
+          <td class="col-type">VARCHAR (255)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>NULL</td>
+          <td>JSON string of custom consultation time windows.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>notes</code></td>
+          <td class="col-type">TEXT (500)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>NULL</td>
+          <td>Administrative explanation (e.g. On Official Leave).</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>created_at</code></td>
+          <td class="col-type">DATETIME (19)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>CURRENT_TIMESTAMP</td>
+          <td>Entry creation timestamp.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- 5. APPOINTMENTS TABLE -->
+  <div class="table-section">
+    <div class="table-header-bar">
+      <div class="table-title">5. Table: <code>appointments</code></div>
+      <span class="badge" style="background:#7B1113; color:#fff;">Core Patient Consultation &amp; Tracking</span>
+    </div>
+    <div class="table-desc">Central table managing patient bookings, triage symptoms, status life cycle, doctor findings, and email tracking placeholders.</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 16%;">Column Name</th>
+          <th style="width: 14%;">Data Type (Length)</th>
+          <th style="width: 6%;">Null?</th>
+          <th style="width: 18%;">Constraints</th>
+          <th style="width: 11%;">Default</th>
+          <th style="width: 35%;">Description &amp; Business Rules</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="col-name"><code>appointment_id</code></td>
+          <td class="col-type">INTEGER (11)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><span class="badge badge-pk">PK</span> AUTOINCREMENT</td>
+          <td><em>None</em></td>
+          <td>Unique internal primary key.</td>
+        </tr>
+        <tr class="highlight-row">
+          <td class="col-name"><code>reference_code</code></td>
+          <td class="col-type">VARCHAR (25)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><span class="badge badge-uq">UNIQUE</span></td>
+          <td><em>None</em></td>
+          <td><strong>Tracking ID (Reference Code)</strong> &mdash; Public code (e.g. <code>EAR-2026-A109</code>) used by patients to track consultation process.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>patient_type</code></td>
+          <td class="col-type">VARCHAR (20)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><span class="badge badge-check">CHECK</span> ('student', 'faculty_staff')</td>
+          <td>'student'</td>
+          <td>Campus constituent category.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>patient_name</code></td>
+          <td class="col-type">VARCHAR (150)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><em>None</em></td>
+          <td><em>None</em></td>
+          <td>Full name of the patient.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>id_number</code></td>
+          <td class="col-type">VARCHAR (30)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><em>None</em></td>
+          <td><em>None</em></td>
+          <td>Student ID (<code>234-0000M</code>) or Faculty ID number.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>department</code></td>
+          <td class="col-type">VARCHAR (150)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><em>None</em></td>
+          <td><em>None</em></td>
+          <td>College (e.g. <code>College of Engineering</code>) or Office.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>course</code></td>
+          <td class="col-type">VARCHAR (150)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>NULL</td>
+          <td>Degree Program (e.g. <code>BS Computer Engineering</code>).</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>year_section</code></td>
+          <td class="col-type">VARCHAR (20)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>NULL</td>
+          <td>Year level &amp; section code (e.g. <code>3-B</code>).</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>age</code></td>
+          <td class="col-type">INTEGER (3)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>NULL</td>
+          <td>Patient age in completed years.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>gender</code></td>
+          <td class="col-type">VARCHAR (10)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>NULL</td>
+          <td>Gender identity (<code>Male</code>, <code>Female</code>, <code>Other</code>).</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>address</code></td>
+          <td class="col-type">VARCHAR (255)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>NULL</td>
+          <td>Residential address in Metro Manila.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>contact_number</code></td>
+          <td class="col-type">VARCHAR (20)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><em>None</em></td>
+          <td><em>None</em></td>
+          <td>Mobile contact phone number for SMS and emergency.</td>
+        </tr>
+        <tr class="highlight-row">
+          <td class="col-name"><code>patient_email</code></td>
+          <td class="col-type">VARCHAR (150)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><span class="badge badge-new">NEW PLACEHOLDER</span></td>
+          <td>NULL</td>
+          <td><strong>Patient Email Address</strong> &mdash; Stores destination email to send Tracking ID so patient can track consultation progress.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>symptoms</code></td>
+          <td class="col-type">TEXT (1000)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>NULL</td>
+          <td>Self-reported medical symptoms or complaints.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>symptom_severity</code></td>
+          <td class="col-type">VARCHAR (15)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><span class="badge badge-check">CHECK</span> ('Mild', 'Moderate', 'Severe')</td>
+          <td>'Mild'</td>
+          <td>Triage priority severity assessment.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>allergies</code></td>
+          <td class="col-type">TEXT (255)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>NULL</td>
+          <td>Known allergies (e.g. Penicillin, Aspirin).</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>medical_history</code></td>
+          <td class="col-type">TEXT (1000)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>NULL</td>
+          <td>Underlying chronic conditions / medical history.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>assistant_id</code></td>
+          <td class="col-type">INTEGER (11)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><span class="badge badge-fk">FK</span> &rarr; assistants</td>
+          <td><em>None</em></td>
+          <td>Foreign key referencing attending doctor.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>appointment_date</code></td>
+          <td class="col-type">VARCHAR (10)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><em>None</em></td>
+          <td><em>None</em></td>
+          <td>Scheduled consultation date (<code>YYYY-MM-DD</code>).</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>time_slot</code></td>
+          <td class="col-type">VARCHAR (30)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><em>None</em></td>
+          <td><em>None</em></td>
+          <td>Allocated consultation window (e.g. <code>09:00 AM - 09:30 AM</code>).</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>service_type</code></td>
+          <td class="col-type">VARCHAR (100)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><em>None</em></td>
+          <td><em>None</em></td>
+          <td>Clinical service (General Consultation, Dental, Clearance).</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>status</code></td>
+          <td class="col-type">VARCHAR (20)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><span class="badge badge-check">CHECK</span> ('Pending', 'Approved', 'OnGoing', 'Completed', 'Cancelled')</td>
+          <td>'Approved'</td>
+          <td>Consultation life cycle status in clinic workflow.</td>
+        </tr>
+        <tr class="highlight-row">
+          <td class="col-name"><code>email_status</code></td>
+          <td class="col-type">VARCHAR (15)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><span class="badge badge-check">CHECK</span> ('Pending', 'Sent', 'Failed') <span class="badge badge-new">NEW</span></td>
+          <td>'Pending'</td>
+          <td><strong>Tracking Email Status</strong> &mdash; Indicates if tracking code email was dispatched (<code>Pending</code>, <code>Sent</code>, <code>Failed</code>).</td>
+        </tr>
+        <tr class="highlight-row">
+          <td class="col-name"><code>email_sent_at</code></td>
+          <td class="col-type">DATETIME (19)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><span class="badge badge-new">NEW PLACEHOLDER</span></td>
+          <td>NULL</td>
+          <td><strong>Tracking Email Timestamp</strong> &mdash; Exact date and time the tracking notification was dispatched.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>reason</code></td>
+          <td class="col-type">TEXT (500)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>NULL</td>
+          <td>Patient-reported reason for visit.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>diagnosis</code></td>
+          <td class="col-type">TEXT (1000)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>NULL</td>
+          <td>Clinical findings recorded by attending doctor.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>prescription</code></td>
+          <td class="col-type">TEXT (1000)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>NULL</td>
+          <td>Prescribed medicine name and dosage form.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>dosage_instructions</code></td>
+          <td class="col-type">TEXT (1000)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>NULL</td>
+          <td>Instructions for intake frequency and care plan.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>created_at</code></td>
+          <td class="col-type">DATETIME (19)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>CURRENT_TIMESTAMP</td>
+          <td>Initial appointment submission timestamp.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- 6. EMAIL NOTIFICATIONS TABLE -->
+  <div class="table-section">
+    <div class="table-header-bar">
+      <div class="table-title">6. Table: <code>email_notifications</code></div>
+      <span class="badge badge-new">NEW OUTBOX DISPATCH LOG</span>
+    </div>
+    <div class="table-desc">Dedicated email notification queue and audit outbox. Tracks dispatched tracking codes, delivery statuses, error logs, and timestamps.</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 16%;">Column Name</th>
+          <th style="width: 15%;">Data Type (Length)</th>
+          <th style="width: 7%;">Null?</th>
+          <th style="width: 18%;">Constraints</th>
+          <th style="width: 11%;">Default</th>
+          <th style="width: 33%;">Description &amp; Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="col-name"><code>notification_id</code></td>
+          <td class="col-type">INTEGER (11)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><span class="badge badge-pk">PK</span> AUTOINCREMENT</td>
+          <td><em>None</em></td>
+          <td>Unique email dispatch log identifier.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>appointment_id</code></td>
+          <td class="col-type">INTEGER (11)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><span class="badge badge-fk">FK</span> &rarr; appointments</td>
+          <td><em>None</em></td>
+          <td>Foreign key referencing <code>appointments(appointment_id)</code> ON DELETE CASCADE.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>recipient_email</code></td>
+          <td class="col-type">VARCHAR (150)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><em>None</em></td>
+          <td><em>None</em></td>
+          <td>Destination email address receiving the tracking link and ticket.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>subject</code></td>
+          <td class="col-type">VARCHAR (255)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><em>None</em></td>
+          <td><em>None</em></td>
+          <td>Subject line of the dispatched confirmation email.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>reference_code</code></td>
+          <td class="col-type">VARCHAR (25)</td>
+          <td><span class="badge badge-notnull">NO</span></td>
+          <td><em>None</em></td>
+          <td><em>None</em></td>
+          <td>The tracking reference code embedded in the email message body.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>template_name</code></td>
+          <td class="col-type">VARCHAR (50)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>'appointment_tracking_id'</td>
+          <td>Email template identifier used for body rendering.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>status</code></td>
+          <td class="col-type">VARCHAR (15)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><span class="badge badge-check">CHECK</span> ('Pending', 'Sent', 'Failed')</td>
+          <td>'Pending'</td>
+          <td>Delivery status of notification email.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>error_message</code></td>
+          <td class="col-type">TEXT (1000)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>NULL</td>
+          <td>Error details / SMTP diagnostics if transmission fails.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>sent_at</code></td>
+          <td class="col-type">DATETIME (19)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>NULL</td>
+          <td>Timestamp when message was successfully delivered via SMTP.</td>
+        </tr>
+        <tr>
+          <td class="col-name"><code>created_at</code></td>
+          <td class="col-type">DATETIME (19)</td>
+          <td><span class="badge badge-null">YES</span></td>
+          <td><em>None</em></td>
+          <td>CURRENT_TIMESTAMP</td>
+          <td>Queue creation timestamp.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Business Rules & Constraints Summary -->
+  <div class="rules-card">
+    <h3>Referential Integrity &amp; Clinic Operating Constraints</h3>
+    <ul>
+      <li><strong>Foreign Key Enforcement:</strong> SQLite <code>PRAGMA foreign_keys = ON;</code> is initialized on every database connection.</li>
+      <li><strong>Cascading Deletes:</strong> Deleting a medical practitioner cascades to all schedules, availability overrides, and appointments; deleting an appointment purges corresponding outbox notifications.</li>
+      <li><strong>Globally Unique Tracking ID:</strong> <code>reference_code</code> in <code>appointments</code> is enforced unique; generated as <code>EAR-XXXX-XXX</code> ensuring conflict-free patient process tracking.</li>
+      <li><strong>Capacity Throttling:</strong> Maximum capacity of 5 patients per consultation slot (<code>MAX_SLOT_CAPACITY = 5</code>) ensures high clinical care standards and eliminates queue congestion.</li>
+      <li><strong>Duplicate Booking Safeguard:</strong> Patients are prevented from scheduling overlapping appointments on identical dates and time windows.</li>
+    </ul>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div>EARIST Health Services Department &bull; Eulogio "Amang" Rodriguez Institute of Science and Technology &bull; Manila, Philippines</div>
+    <div>Generated Technical Data Dictionary &bull; Version 1.2 (Type Lengths Specification)</div>
+  </div>
+
+</body>
+</html>

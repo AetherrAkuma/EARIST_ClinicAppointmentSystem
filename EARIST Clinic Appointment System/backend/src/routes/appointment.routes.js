@@ -38,6 +38,8 @@ router.post('/public-book', (req, res) => {
     gender,
     address,
     contact_number,
+    patient_email,
+    email,
 
     // Stage 2: Symptoms & Triage
     symptoms,
@@ -52,6 +54,8 @@ router.post('/public-book', (req, res) => {
     time_slot,
     service_type
   } = req.body;
+
+  const targetEmail = (patient_email || email || '').trim() || null;
 
   // 1. Bot check: Honeypot field must be empty
   if (website_hp) {
@@ -109,7 +113,7 @@ router.post('/public-book', (req, res) => {
     });
   }
 
-  // 7. Generate Reference Code
+  // 7. Generate Reference Code (Tracking ID)
   let referenceCode = generateReferenceCode();
   // Ensure uniqueness
   while (db.prepare('SELECT appointment_id FROM appointments WHERE reference_code = ?').get(referenceCode)) {
@@ -119,10 +123,10 @@ router.post('/public-book', (req, res) => {
   const insertStmt = db.prepare(`
     INSERT INTO appointments (
       reference_code, patient_type, patient_name, id_number, department, course, year_section,
-      age, gender, address, contact_number, symptoms, symptom_severity, allergies, medical_history,
-      assistant_id, appointment_date, time_slot, service_type, status, reason
+      age, gender, address, contact_number, patient_email, symptoms, symptom_severity, allergies, medical_history,
+      assistant_id, appointment_date, time_slot, service_type, status, email_status, email_sent_at, reason
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Approved', ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Approved', 'Pending', NULL, ?)
   `);
 
   const result = insertStmt.run(
@@ -137,6 +141,7 @@ router.post('/public-book', (req, res) => {
     gender || 'Other',
     address ? address.trim() : null,
     contact_number.trim(),
+    targetEmail,
     Array.isArray(symptoms) ? symptoms.join(', ') : symptoms || 'None specified',
     symptom_severity || 'Mild',
     allergies ? allergies.trim() : 'None',
@@ -148,11 +153,33 @@ router.post('/public-book', (req, res) => {
     reason ? reason.trim() : 'Campus Clinic Visit'
   );
 
+  const newAppointmentId = result.lastInsertRowid;
+
+  // Placeholder: Queue email notification for tracking ID dispatch if email was provided
+  if (targetEmail) {
+    try {
+      db.prepare(`
+        INSERT INTO email_notifications (
+          appointment_id, recipient_email, subject, reference_code, template_name, status
+        )
+        VALUES (?, ?, ?, ?, 'appointment_tracking_id', 'Pending')
+      `).run(
+        newAppointmentId,
+        targetEmail,
+        `EARIST Clinic Appointment Confirmation - Tracking ID: ${referenceCode}`,
+        referenceCode
+      );
+    } catch (notifErr) {
+      console.warn('[appointments] Warning creating email notification placeholder:', notifErr.message);
+    }
+  }
+
   return res.status(201).json({
     success: true,
     message: 'Clinic appointment successfully confirmed!',
     reference_code: referenceCode,
-    appointment_id: result.lastInsertRowid
+    appointment_id: newAppointmentId,
+    email_status: targetEmail ? 'Pending' : 'Not Provided'
   });
 });
 
