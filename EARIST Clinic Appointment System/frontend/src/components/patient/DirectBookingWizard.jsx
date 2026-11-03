@@ -54,12 +54,13 @@ const filterUpcomingSlotsToday = (slots, date) => {
   });
 };
 
-export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess }) => {
+export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initialData = null }) => {
   const [step, setStep] = useState(1);
   const [patientType, setPatientType] = useState('student'); // 'student' | 'faculty_staff'
   const [bookingMode, setBookingMode] = useState('urgent_today'); // 'urgent_today' | 'scheduled_later'
   const [doctors, setDoctors] = useState([]);
   const [loadingDoctors, setLoadingDoctors] = useState(true);
+  const [isAutoFilled, setIsAutoFilled] = useState(false);
 
   // Bot protection challenge
   const [botNum1, setBotNum1] = useState(4);
@@ -134,7 +135,7 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess }) => {
       .then((data) => {
         if (data.success && data.doctors) {
           setDoctors(data.doctors);
-          if (data.doctors.length > 0) {
+          if (data.doctors.length > 0 && !formData.assistant_id) {
             setFormData((prev) => ({
               ...prev,
               assistant_id: data.doctors[0].assistant_id
@@ -148,7 +149,68 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess }) => {
     // Default appointment date to today for immediate triage
     const todayStr = getTodayString();
     setFormData((prev) => ({ ...prev, appointment_date: todayStr }));
-  }, [isOpen]);
+
+    // Check if initialData was provided (e.g. from Reschedule flow)
+    if (initialData) {
+      setFormData((prev) => ({
+        ...prev,
+        patient_name: initialData.patient_name || prev.patient_name,
+        id_number: initialData.id_number || prev.id_number,
+        department: initialData.department || prev.department,
+        course: initialData.course || prev.course,
+        year_section: initialData.year_section || prev.year_section,
+        age: initialData.age || prev.age,
+        gender: initialData.gender || prev.gender,
+        contact_number: initialData.contact_number || prev.contact_number,
+        address: initialData.address || prev.address,
+        service_type: initialData.service_type || prev.service_type,
+        assistant_id: initialData.assistant_id || prev.assistant_id
+      }));
+      if (initialData.patient_type) setPatientType(initialData.patient_type);
+      setStep(3); // Jump right into date/slot picking for rescheduling
+      setIsAutoFilled(true);
+    } else {
+      // Check localStorage for saved patient profile
+      try {
+        const saved = JSON.parse(localStorage.getItem('earist_clinic_patient'));
+        if (saved && (saved.patient_name || saved.id_number)) {
+          setFormData((prev) => ({
+            ...prev,
+            patient_name: saved.patient_name || '',
+            id_number: saved.id_number || '',
+            department: saved.department || prev.department,
+            course: saved.course || '',
+            year_section: saved.year_section || '',
+            age: saved.age || '',
+            gender: saved.gender || 'Male',
+            contact_number: saved.contact_number || '',
+            address: saved.address || ''
+          }));
+          if (saved.patient_type) setPatientType(saved.patient_type);
+          setIsAutoFilled(true);
+        }
+      } catch (e) {
+        localStorage.removeItem('earist_clinic_patient');
+      }
+    }
+  }, [isOpen, initialData]);
+
+  const handleClearAutoFill = () => {
+    try {
+      localStorage.removeItem('earist_clinic_patient');
+    } catch (e) {}
+    setFormData((prev) => ({
+      ...prev,
+      patient_name: '',
+      id_number: '',
+      course: '',
+      year_section: '',
+      age: '',
+      contact_number: '',
+      address: ''
+    }));
+    setIsAutoFilled(false);
+  };
 
   // Dynamically load active unbooked time slots for selected doctor and date
   useEffect(() => {
@@ -280,6 +342,25 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess }) => {
       if (!res.ok || !data.success) {
         throw new Error(data.message || 'Booking submission failed.');
       }
+
+      // Save demographic info to localStorage for future visits
+      try {
+        localStorage.setItem(
+          'earist_clinic_patient',
+          JSON.stringify({
+            patient_type: patientType,
+            patient_name: formData.patient_name,
+            id_number: formData.id_number,
+            department: formData.department,
+            course: formData.course,
+            year_section: formData.year_section,
+            age: formData.age,
+            gender: formData.gender,
+            contact_number: formData.contact_number,
+            address: formData.address
+          })
+        );
+      } catch (e) {}
 
       setConfirmedTicket({
         reference_code: data.reference_code,
@@ -459,6 +540,24 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess }) => {
           {/* STAGE 1: Affiliation & Identification */}
           {step === 1 && (
             <div className="space-y-4">
+              {isAutoFilled && (
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>
+                      Welcome back, <strong>{formData.patient_name || 'student'}</strong>! Your information was auto-filled from your previous visit.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClearAutoFill}
+                    className="text-[11px] font-bold text-rose-600 hover:text-rose-800 underline ml-2 shrink-0 cursor-pointer"
+                  >
+                    Clear Info
+                  </button>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Who is this consultation for?

@@ -15,6 +15,12 @@ const MainApp = () => {
   const [currentView, setCurrentView] = useState('home'); // 'home' | 'login'
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [isTrackOpen, setIsTrackOpen] = useState(false);
+  const [bookingInitialData, setBookingInitialData] = useState(null);
+
+  const handleOpenBooking = (initialData = null) => {
+    setBookingInitialData(initialData);
+    setIsBookingOpen(true);
+  };
 
   if (loading) {
     return (
@@ -36,7 +42,7 @@ const MainApp = () => {
       <Navbar
         currentTab={currentView}
         onNavigate={(view) => setCurrentView(view)}
-        onOpenBooking={() => setIsBookingOpen(true)}
+        onOpenBooking={() => handleOpenBooking(null)}
         onOpenTrack={() => setIsTrackOpen(true)}
       />
 
@@ -52,7 +58,31 @@ const MainApp = () => {
             >
               {isAdmin && <AdminDashboard />}
               {isDoctor && <DoctorDashboard />}
-              {isPatient && <DoctorDashboard />}
+              {!isAdmin && !isDoctor && (
+                <div className="max-w-md mx-auto my-16 p-8 bg-white rounded-3xl shadow-lg border border-slate-200 text-center space-y-4">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto">
+                    <HeartPulse className="w-6 h-6 text-earist-crimson" />
+                  </div>
+                  <h3 className="text-lg font-extrabold text-slate-900">EARIST Campus Health Services</h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Public student and faculty consultations can be booked directly without user credentials.
+                  </p>
+                  <div className="flex gap-2.5 justify-center pt-2">
+                    <button
+                      onClick={() => handleOpenBooking(null)}
+                      className="px-4 py-2.5 rounded-xl text-xs font-bold text-white earist-gradient shadow-xs hover:opacity-95"
+                    >
+                      Book Appointment
+                    </button>
+                    <button
+                      onClick={() => setIsTrackOpen(true)}
+                      className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200"
+                    >
+                      Track Ticket
+                    </button>
+                  </div>
+                </div>
+              )}
             </motion.div>
           ) : (
             <motion.div
@@ -65,14 +95,14 @@ const MainApp = () => {
               {currentView === 'home' && (
                 <LandingPage
                   onNavigate={(view) => setCurrentView(view)}
-                  onOpenBooking={() => setIsBookingOpen(true)}
+                  onOpenBooking={() => handleOpenBooking(null)}
                   onOpenTrack={() => setIsTrackOpen(true)}
                 />
               )}
               {currentView === 'login' && (
                 <LoginPage
                   onNavigate={(view) => setCurrentView(view)}
-                  onOpenBooking={() => setIsBookingOpen(true)}
+                  onOpenBooking={() => handleOpenBooking(null)}
                   onOpenTrack={() => setIsTrackOpen(true)}
                 />
               )}
@@ -84,12 +114,20 @@ const MainApp = () => {
       {/* Global Modals for Direct Booking and Ticket Tracking */}
       <DirectBookingWizard
         isOpen={isBookingOpen}
-        onClose={() => setIsBookingOpen(false)}
+        onClose={() => {
+          setIsBookingOpen(false);
+          setBookingInitialData(null);
+        }}
         onBookingSuccess={() => {}}
+        initialData={bookingInitialData}
       />
       <TrackAppointmentModal
         isOpen={isTrackOpen}
         onClose={() => setIsTrackOpen(false)}
+        onReschedule={(apptData) => {
+          setIsTrackOpen(false);
+          handleOpenBooking(apptData);
+        }}
       />
 
       {/* Campus Footer */}

@@ -32,6 +32,10 @@ export const DoctorDashboard = () => {
   const [activeTab, setActiveTab] = useState('queue'); // 'queue' | 'availability'
   const [showOffDutyModal, setShowOffDutyModal] = useState(false);
   const [togglingDuty, setTogglingDuty] = useState(false);
+  const [lastSyncedTime, setLastSyncedTime] = useState(
+    new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  );
+  const inFlightRef = React.useRef(false);
 
   // Consultation Form
   const [diagnosis, setDiagnosis] = useState('');
@@ -40,6 +44,8 @@ export const DoctorDashboard = () => {
   const [updating, setUpdating] = useState(false);
 
   const fetchDoctorData = async () => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     try {
       const headers = { Authorization: `Bearer ${token}` };
 
@@ -48,6 +54,9 @@ export const DoctorDashboard = () => {
       const dataQueue = await resQueue.json();
       if (dataQueue.success) {
         setQueue(dataQueue.queue || []);
+        setLastSyncedTime(
+          new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        );
       }
 
       // 2. Fetch Doctor Schedules & Duty status via /api/doctors/my/schedules
@@ -75,12 +84,18 @@ export const DoctorDashboard = () => {
     } catch (err) {
       console.error('Failed to fetch doctor dashboard data:', err);
     } finally {
+      inFlightRef.current = false;
       setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchDoctorData();
+    // 15-second background auto-polling for incoming walk-in/urgent triage
+    const pollInterval = setInterval(() => {
+      fetchDoctorData();
+    }, 15000);
+    return () => clearInterval(pollInterval);
   }, [token, user]);
 
   const handleDutyButtonClick = () => {
@@ -206,13 +221,17 @@ export const DoctorDashboard = () => {
         className="glass-maroon p-6 sm:p-8 rounded-3xl text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6"
       >
         <div className="space-y-2">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span
               className={`px-3 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
                 isOnDuty ? 'bg-emerald-400 text-emerald-950' : 'bg-slate-300 text-slate-800'
               }`}
             >
               {isOnDuty ? '● ON DUTY & ACCEPTING PATIENTS' : '○ OFF DUTY'}
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/15 text-emerald-300 border border-emerald-400/30">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Live Sync (15s) • {lastSyncedTime}
             </span>
             <span className="text-xs text-amber-200">EARIST Medical Directorate</span>
           </div>

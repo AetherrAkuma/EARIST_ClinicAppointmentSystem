@@ -1,20 +1,23 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { Badge } from '../common/Badge';
-import { Search, Calendar, Clock, Stethoscope, MapPin, CheckCircle2, Printer, AlertCircle, FileText } from 'lucide-react';
+import { Search, Calendar, Clock, Stethoscope, MapPin, CheckCircle2, Printer, AlertCircle, FileText, ArrowRight, XCircle } from 'lucide-react';
 
-export const TrackAppointmentModal = ({ isOpen, onClose }) => {
+export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule }) => {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [appointment, setAppointment] = useState(null);
   const [error, setError] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+  const [actionNotice, setActionNotice] = useState('');
 
   const handleSearch = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!query.trim()) return;
 
     setLoading(true);
     setError('');
+    setActionNotice('');
     setAppointment(null);
 
     try {
@@ -31,10 +34,43 @@ export const TrackAppointmentModal = ({ isOpen, onClose }) => {
     }
   };
 
+  const handleCancelAppointment = async () => {
+    if (!appointment) return;
+    if (!window.confirm(`Are you sure you want to cancel this clinic appointment (${appointment.reference_code})?`)) {
+      return;
+    }
+
+    setCancelling(true);
+    try {
+      const res = await fetch(`/api/appointments/${appointment.appointment_id}/cancel`, {
+        method: 'PATCH'
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAppointment((prev) => ({ ...prev, status: 'Cancelled' }));
+        setActionNotice('Your clinic appointment has been cancelled.');
+      } else {
+        alert(data.message || 'Error cancelling appointment.');
+      }
+    } catch (err) {
+      alert('Error cancelling appointment.');
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const handleRescheduleClick = () => {
+    if (!appointment || !onReschedule) return;
+    onReschedule(appointment);
+  };
+
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={() => {
+        setActionNotice('');
+        onClose();
+      }}
       title="Track Your Clinic Appointment & Medical Slip"
       subtitle="Enter your Reference Code (e.g. EAR-XXXX) or Student ID Number"
     >
@@ -55,7 +91,7 @@ export const TrackAppointmentModal = ({ isOpen, onClose }) => {
           <button
             type="submit"
             disabled={loading}
-            className="px-5 py-2.5 rounded-xl text-xs font-bold text-white earist-gradient hover:opacity-95 shadow-xs shrink-0 flex items-center gap-1.5"
+            className="px-5 py-2.5 rounded-xl text-xs font-bold text-white earist-gradient hover:opacity-95 shadow-xs shrink-0 flex items-center gap-1.5 cursor-pointer"
           >
             {loading ? 'Searching...' : 'Track Ticket'}
           </button>
@@ -65,6 +101,13 @@ export const TrackAppointmentModal = ({ isOpen, onClose }) => {
           <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
             <span>{error}</span>
+          </div>
+        )}
+
+        {actionNotice && (
+          <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-amber-600" />
+            <span>{actionNotice}</span>
           </div>
         )}
 
@@ -90,6 +133,62 @@ export const TrackAppointmentModal = ({ isOpen, onClose }) => {
                 <Badge status={appointment.status} className="mt-1" />
               </div>
             </div>
+
+            {/* Live Queue Position Card (shown for today's active appointments) */}
+            {appointment.is_today && ['Approved', 'OnGoing'].includes(appointment.status) && (
+              <div
+                className={`p-4 rounded-2xl border text-xs ${
+                  appointment.status === 'OnGoing'
+                    ? 'bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/10 border-emerald-300'
+                    : 'bg-gradient-to-r from-amber-500/10 via-red-500/10 to-amber-500/10 border-amber-300'
+                }`}
+              >
+                {appointment.status === 'OnGoing' ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold animate-pulse shrink-0">
+                      <Stethoscope className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                        <span className="font-extrabold text-emerald-900 uppercase tracking-wider text-[11px]">
+                          Now Serving Inside Consultation Room
+                        </span>
+                      </div>
+                      <p className="text-xs font-bold text-slate-800 mt-0.5">
+                        Dr. {appointment.doctor_first_name} {appointment.doctor_last_name} is actively consulting with you.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl earist-gradient text-white flex flex-col items-center justify-center font-bold shrink-0 shadow-xs">
+                        <span className="text-[9px] uppercase tracking-tighter text-amber-200">Queue</span>
+                        <span className="text-base font-extrabold leading-none">#{appointment.queue_position || 1}</span>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                          <span className="font-extrabold text-slate-900 uppercase tracking-wider text-[11px]">
+                            Live Clinic Queue Position
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 mt-0.5">
+                          {appointment.patients_ahead === 0 ? (
+                            <strong className="text-emerald-700">You are next in line! Please wait near {appointment.room_number || 'Room 101'}.</strong>
+                          ) : (
+                            <span>
+                              <strong>{appointment.patients_ahead} patient{appointment.patients_ahead > 1 ? 's' : ''}</strong> ahead of you today (Est. wait: ~{appointment.patients_ahead * 15} mins)
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Schedule & Station */}
             <div className="grid sm:grid-cols-2 gap-2.5 text-xs text-slate-600">
@@ -144,10 +243,33 @@ export const TrackAppointmentModal = ({ isOpen, onClose }) => {
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="mt-2 w-full py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                  className="mt-2 w-full py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Printer className="w-3.5 h-3.5" />
                   Print Official Clearance Slip
+                </button>
+              </div>
+            )}
+
+            {/* Active Appointment Actions (Reschedule & Cancel) */}
+            {appointment.status === 'Approved' && (
+              <div className="flex gap-2 pt-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={handleRescheduleClick}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold text-earist-dark bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                  Reschedule Date / Time
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelAppointment}
+                  disabled={cancelling}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                >
+                  <XCircle className="w-3.5 h-3.5 text-rose-500" />
+                  {cancelling ? 'Cancelling...' : 'Cancel Appointment'}
                 </button>
               </div>
             )}

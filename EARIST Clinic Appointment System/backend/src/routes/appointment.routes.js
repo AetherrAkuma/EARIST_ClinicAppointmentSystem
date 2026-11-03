@@ -182,7 +182,55 @@ router.get('/track/:reference', (req, res) => {
     });
   }
 
-  return res.json({ success: true, appointment });
+  // Calculate live queue rank if appointment is today and status is active
+  const today = new Date().toISOString().slice(0, 10);
+  const isToday = appointment.appointment_date === today;
+  let queuePosition = null;
+  let patientsAhead = 0;
+  let totalInQueueToday = 0;
+
+  if (isToday && ['Approved', 'OnGoing'].includes(appointment.status)) {
+    const countRow = db.prepare(`
+      SELECT COUNT(*) as pos
+      FROM appointments
+      WHERE assistant_id = ?
+        AND appointment_date = ?
+        AND status IN ('Approved', 'OnGoing')
+        AND (
+          time_slot < ? OR 
+          (time_slot = ? AND appointment_id <= ?)
+        )
+    `).get(
+      appointment.assistant_id,
+      appointment.appointment_date,
+      appointment.time_slot,
+      appointment.time_slot,
+      appointment.appointment_id
+    );
+
+    const totalRow = db.prepare(`
+      SELECT COUNT(*) as total
+      FROM appointments
+      WHERE assistant_id = ?
+        AND appointment_date = ?
+        AND status IN ('Approved', 'OnGoing')
+    `).get(appointment.assistant_id, appointment.appointment_date);
+
+    queuePosition = countRow ? countRow.pos : 1;
+    patientsAhead = Math.max(0, queuePosition - 1);
+    totalInQueueToday = totalRow ? totalRow.total : 1;
+  }
+
+  return res.json({
+    success: true,
+    appointment: {
+      ...appointment,
+      is_today: isToday,
+      queue_position: queuePosition,
+      patients_ahead: patientsAhead,
+      total_in_queue_today: totalInQueueToday
+    }
+  });
 });
 
 // GET /api/appointments/queue - Medical Staff queue (requires login)
