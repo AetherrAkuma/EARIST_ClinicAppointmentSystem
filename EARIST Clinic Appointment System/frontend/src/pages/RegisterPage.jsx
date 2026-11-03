@@ -25,14 +25,16 @@ export const RegisterPage = ({ onNavigate }) => {
 
   const departments = [
     'College of Engineering (CEN)',
+    'College of Industrial Technology (CIT)',
+    'College of Architecture and Fine Arts (CAFA)',
     'College of Arts and Sciences (CAS)',
     'College of Business Administration (CBA)',
+    'College of Public Administration and Criminology (CPAC)',
     'College of Education (CED)',
     'College of Hospitality and Tourism Management (CHTM)',
-    'College of Architecture and Fine Arts (CAFA)',
-    'College of Industrial Technology (CIT)',
-    'College of Public Administration and Criminology (CPAC)',
-    'EARIST Faculty & Administrative Staff'
+    'Graduate School (GS)',
+    'EARIST Faculty & Administrative Staff',
+    'Outsource / Extension Personnel'
   ];
 
   const handleChange = (e) => {

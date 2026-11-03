@@ -17,9 +17,10 @@ router.get('/metrics', (req, res) => {
   const totalAppointments = db.prepare(`SELECT COUNT(*) as count FROM appointments`).get().count;
   const todayVisits = db.prepare(`SELECT COUNT(*) as count FROM appointments WHERE appointment_date = ?`).get(today).count;
 
-  // Breakdown by student vs faculty
+  // Breakdown by visitor category (Students, Academic/Non-Academic, Outsource/Extension)
   const studentVisits = db.prepare(`SELECT COUNT(*) as count FROM appointments WHERE patient_type = 'student'`).get().count;
-  const facultyVisits = db.prepare(`SELECT COUNT(*) as count FROM appointments WHERE patient_type = 'faculty_staff'`).get().count;
+  const facultyVisits = db.prepare(`SELECT COUNT(*) as count FROM appointments WHERE patient_type IN ('faculty_staff', 'academic_non_academic')`).get().count;
+  const outsourceVisits = db.prepare(`SELECT COUNT(*) as count FROM appointments WHERE patient_type = 'outsource_extension'`).get().count;
 
   // Status breakdown
   const statusRows = db.prepare(`
@@ -45,6 +46,7 @@ router.get('/metrics', (req, res) => {
       todayVisits,
       studentVisits,
       facultyVisits,
+      outsourceVisits,
       statusBreakdown
     }
   });
@@ -95,11 +97,14 @@ router.get('/appointments', (req, res) => {
   return res.json({ success: true, appointments });
 });
 
-// GET /api/admin/export - CSV Export of clinic appointments
+// GET /api/admin/export - CSV Export of official Daily Clinic Visit Logsheet (Medical Services)
 router.get('/export', (req, res) => {
   const db = getDb();
-  const rows = db.prepare(`
+  const { category, date } = req.query;
+
+  let query = `
     SELECT 
+      ap.appointment_id,
       ap.reference_code,
       ap.appointment_date,
       ap.time_slot,
@@ -110,52 +115,117 @@ router.get('/export', (req, res) => {
       ap.course,
       ap.year_section,
       ap.contact_number,
+      ap.email,
       ap.symptoms,
+      ap.reason,
       ap.symptom_severity,
       ap.service_type,
       ap.status,
       d_u.first_name || ' ' || d_u.last_name AS doctor_name,
       ast.specialization,
-      COALESCE(ap.diagnosis, 'None') AS diagnosis,
-      COALESCE(ap.prescription, 'None') AS prescription
+      COALESCE(ap.diagnosis, '') AS diagnosis,
+      COALESCE(ap.prescription, '') AS prescription,
+      COALESCE(ap.dosage_instructions, '') AS dosage_instructions
     FROM appointments ap
     JOIN assistants ast ON ap.assistant_id = ast.assistant_id
     JOIN users d_u ON ast.user_id = d_u.id
-    ORDER BY ap.appointment_date DESC
-  `).all();
+    WHERE 1=1
+  `;
+  const params = [];
 
+  if (category && category !== 'all') {
+    query += ` AND ap.patient_type = ?`;
+    params.push(category);
+  }
+
+  if (date) {
+    query += ` AND ap.appointment_date = ?`;
+    params.push(date);
+  }
+
+  query += ` ORDER BY ap.appointment_date DESC, ap.time_slot ASC`;
+
+  const rows = db.prepare(query).all(...params);
+
+  // Exact physical logsheet header columns matching the EARIST paper forms
+  // TIME | DATE | NAME | DEPT | COMPLAINTS | MANAGEMENT | SIGNATURE | ATTENDED BY:
   const header = [
-    'Ref Code', 'Date', 'Time Slot', 'Type', 'Name', 'ID Number', 'College/Dept',
-    'Course', 'Year & Sec', 'Contact', 'Symptoms', 'Severity', 'Service', 'Status', 'Doctor', 'Specialization', 'Diagnosis', 'Prescription'
+    'TIME',
+    'DATE',
+    'NAME',
+    'DEPT',
+    'COMPLAINTS',
+    'MANAGEMENT',
+    'SIGNATURE',
+    'ATTENDED BY',
+    'VISITOR CATEGORY',
+    'STUDENT/EMPLOYEE ID',
+    'CONTACT NUMBER',
+    'EMAIL',
+    'COURSE / DESIGNATION',
+    'REFERENCE CODE',
+    'STATUS'
   ];
   const csvLines = [header.join(',')];
 
+  const categoryLabel = (type) => {
+    if (type === 'student') return 'STUDENTS';
+    if (type === 'outsource_extension') return 'OUTSOURCE/EXTENSION';
+    return 'ACADEMIC/NON-ACADEMIC';
+  };
+
+  const escapeCsv = (str) => `"${String(str || '').replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`;
+
   for (const r of rows) {
+    const timeFormatted = r.time_slot ? r.time_slot.split(' - ')[0] : 'N/A';
+    const dateFormatted = r.appointment_date || '';
+    const nameFormatted = (r.patient_name || '').toUpperCase();
+    const deptFormatted = r.department || '';
+    const complaintsFormatted = r.symptoms || r.reason || 'General Medical Consultation';
+
+    let managementParts = [];
+    if (r.prescription && r.prescription !== 'None' && r.prescription.trim() !== '') {
+      managementParts.push(r.prescription.trim());
+    }
+    if (r.diagnosis && r.diagnosis !== 'None' && r.diagnosis.trim() !== '') {
+      managementParts.push(r.diagnosis.trim());
+    }
+    if (r.dosage_instructions && r.dosage_instructions !== 'None' && r.dosage_instructions.trim() !== '') {
+      managementParts.push(r.dosage_instructions.trim());
+    }
+    const managementFormatted = managementParts.length > 0 ? managementParts.join(' ; ') : 'Consultation / Evaluation Done';
+
+    const signatureFormatted = `[Verified: ${r.reference_code}]`;
+    const docClean = (r.doctor_name || '').trim();
+    const attendedByFormatted = docClean.startsWith('Dr.') || docClean.startsWith('Dr ') ? docClean : `Dr. ${docClean}`;
+    const categoryName = categoryLabel(r.patient_type);
+    const courseYear = [r.course, r.year_section].filter(Boolean).join(' - ') || 'N/A';
+
     const line = [
-      `"${r.reference_code}"`,
-      `"${r.appointment_date}"`,
-      `"${r.time_slot}"`,
-      `"${r.patient_type}"`,
-      `"${r.patient_name}"`,
-      `"${r.id_number}"`,
-      `"${r.department}"`,
-      `"${r.course || ''}"`,
-      `"${r.year_section || ''}"`,
-      `"${r.contact_number}"`,
-      `"${(r.symptoms || '').replace(/"/g, '""')}"`,
-      `"${r.symptom_severity}"`,
-      `"${r.service_type}"`,
-      `"${r.status}"`,
-      `"${r.doctor_name}"`,
-      `"${r.specialization}"`,
-      `"${(r.diagnosis || '').replace(/"/g, '""')}"`,
-      `"${(r.prescription || '').replace(/"/g, '""')}"`
+      escapeCsv(timeFormatted),
+      escapeCsv(dateFormatted),
+      escapeCsv(nameFormatted),
+      escapeCsv(deptFormatted),
+      escapeCsv(complaintsFormatted),
+      escapeCsv(managementFormatted),
+      escapeCsv(signatureFormatted),
+      escapeCsv(attendedByFormatted),
+      escapeCsv(categoryName),
+      escapeCsv(r.id_number),
+      escapeCsv(r.contact_number),
+      escapeCsv(r.email || ''),
+      escapeCsv(courseYear),
+      escapeCsv(r.reference_code),
+      escapeCsv(r.status)
     ];
     csvLines.push(line.join(','));
   }
 
+  const categoryName = category && category !== 'all' ? category.toUpperCase() : 'ALL_VISITS';
+  const filename = `EARIST_Daily_Clinic_Visit_Logsheet_${categoryName}_${new Date().toISOString().split('T')[0]}.csv`;
+
   res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="earist_clinic_consultation_logs.csv"');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   return res.send(csvLines.join('\n'));
 });
 

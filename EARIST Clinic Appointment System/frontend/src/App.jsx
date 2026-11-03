@@ -8,6 +8,7 @@ import { DoctorDashboard } from './pages/DoctorDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { DirectBookingWizard } from './components/patient/DirectBookingWizard';
 import { TrackAppointmentModal } from './components/patient/TrackAppointmentModal';
+import { UpdateBanner } from './components/common/UpdateBanner';
 import { HeartPulse, MapPin, Mail, Phone } from 'lucide-react';
 
 const MainApp = () => {
@@ -39,6 +40,7 @@ const MainApp = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
+      <UpdateBanner />
       <Navbar
         currentTab={currentView}
         onNavigate={(view) => setCurrentView(view)}
@@ -59,24 +61,24 @@ const MainApp = () => {
               {isAdmin && <AdminDashboard />}
               {isDoctor && <DoctorDashboard />}
               {!isAdmin && !isDoctor && (
-                <div className="max-w-md mx-auto my-16 p-8 bg-white rounded-3xl shadow-lg border border-slate-200 text-center space-y-4">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto">
+                <div className="max-w-md mx-auto my-16 p-8 bg-white rounded-2xl shadow-sm border border-slate-200 text-center space-y-4">
+                  <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-900 flex items-center justify-center mx-auto border border-amber-200">
                     <HeartPulse className="w-6 h-6 text-earist-crimson" />
                   </div>
-                  <h3 className="text-lg font-extrabold text-slate-900">EARIST Campus Health Services</h3>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Public student and faculty consultations can be booked directly without user credentials.
+                  <h3 className="text-xl font-bold text-slate-900">EARIST Campus Health Services</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    Student, faculty, and personnel clinic consultations can be booked directly without requiring prior sign up.
                   </p>
-                  <div className="flex gap-2.5 justify-center pt-2">
+                  <div className="flex gap-3 justify-center pt-2">
                     <button
                       onClick={() => handleOpenBooking(null)}
-                      className="px-4 py-2.5 rounded-xl text-xs font-bold text-white earist-gradient shadow-xs hover:opacity-95"
+                      className="px-5 py-2.5 rounded-xl text-sm font-bold text-white earist-gradient shadow-xs hover:brightness-105 transition-colors"
                     >
                       Book Appointment
                     </button>
                     <button
                       onClick={() => setIsTrackOpen(true)}
-                      className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200"
+                      className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors"
                     >
                       Track Ticket
                     </button>

@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const { getDb } = require('../config/db');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const { sendAppointmentConfirmationEmail } = require('../services/email.service');
 
 const router = express.Router();
 
@@ -38,6 +39,7 @@ router.post('/public-book', (req, res) => {
     gender,
     address,
     contact_number,
+    email,
 
     // Stage 2: Symptoms & Triage
     symptoms,
@@ -119,15 +121,20 @@ router.post('/public-book', (req, res) => {
   const insertStmt = db.prepare(`
     INSERT INTO appointments (
       reference_code, patient_type, patient_name, id_number, department, course, year_section,
-      age, gender, address, contact_number, symptoms, symptom_severity, allergies, medical_history,
+      age, gender, address, contact_number, email, symptoms, symptom_severity, allergies, medical_history,
       assistant_id, appointment_date, time_slot, service_type, status, reason
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Approved', ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Approved', ?)
   `);
+
+  const validTypes = ['student', 'academic_non_academic', 'faculty_staff', 'outsource_extension'];
+  const normalizedPatientType = validTypes.includes(patient_type) ? patient_type : 'student';
+
+  const cleanedEmail = email && email.trim() ? email.trim().toLowerCase() : null;
 
   const result = insertStmt.run(
     referenceCode,
-    patient_type || 'student',
+    normalizedPatientType,
     patient_name.trim(),
     id_number.trim().toUpperCase(),
     department.trim(),
@@ -137,6 +144,7 @@ router.post('/public-book', (req, res) => {
     gender || 'Other',
     address ? address.trim() : null,
     contact_number.trim(),
+    cleanedEmail,
     Array.isArray(symptoms) ? symptoms.join(', ') : symptoms || 'None specified',
     symptom_severity || 'Mild',
     allergies ? allergies.trim() : 'None',
@@ -148,6 +156,37 @@ router.post('/public-book', (req, res) => {
     reason ? reason.trim() : 'Campus Clinic Visit'
   );
 
+  // Send confirmation email asynchronously
+  if (cleanedEmail) {
+    try {
+      const doctorInfo = db.prepare(`
+        SELECT u.first_name, u.last_name, ast.room_number 
+        FROM assistants ast 
+        JOIN users u ON ast.user_id = u.id 
+        WHERE ast.assistant_id = ?
+      `).get(parseInt(assistant_id, 10));
+
+      sendAppointmentConfirmationEmail({
+        email: cleanedEmail,
+        reference_code: referenceCode,
+        patient_name: patient_name.trim(),
+        id_number: id_number.trim().toUpperCase(),
+        patient_type: normalizedPatientType,
+        department: department.trim(),
+        appointment_date,
+        time_slot,
+        service_type: service_type || 'General Medical Consultation',
+        doctor_name: doctorInfo ? `${doctorInfo.first_name} ${doctorInfo.last_name}` : 'Assigned Clinic Staff',
+        room_number: doctorInfo?.room_number || 'Main Clinic Rm 101',
+        symptoms: Array.isArray(symptoms) ? symptoms.join(', ') : symptoms || reason || 'General Consultation'
+      }).catch((err) => {
+        console.error('[Async Email Error]:', err.message);
+      });
+    } catch (emailErr) {
+      console.error('[Email Dispatch Setup Error]:', emailErr.message);
+    }
+  }
+
   return res.status(201).json({
     success: true,
     message: 'Clinic appointment successfully confirmed!',
@@ -156,10 +195,11 @@ router.post('/public-book', (req, res) => {
   });
 });
 
-// GET /api/appointments/track/:reference - Look up appointment ticket by Reference Code or Student ID
+// GET /api/appointments/track/:reference - Look up appointment ticket by Reference Code, ID Number, or Email
 router.get('/track/:reference', (req, res) => {
   const { reference } = req.params;
   const db = getDb();
+  const q = (reference || '').trim();
 
   const appointment = db.prepare(`
     SELECT 
@@ -171,14 +211,16 @@ router.get('/track/:reference', (req, res) => {
     FROM appointments ap
     JOIN assistants ast ON ap.assistant_id = ast.assistant_id
     JOIN users u ON ast.user_id = u.id
-    WHERE ap.reference_code = ? OR ap.id_number = ?
+    WHERE UPPER(ap.reference_code) = UPPER(?) 
+       OR UPPER(ap.id_number) = UPPER(?)
+       OR LOWER(COALESCE(ap.email, '')) = LOWER(?)
     ORDER BY ap.created_at DESC
-  `).get(reference.trim().toUpperCase(), reference.trim().toUpperCase());
+  `).get(q, q, q);
 
   if (!appointment) {
     return res.status(404).json({
       success: false,
-      message: 'No active clinic appointment found matching that Reference Code or Student Number.'
+      message: 'No active clinic appointment found matching that Reference Code, ID Number, or Email address.'
     });
   }
 

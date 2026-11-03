@@ -72,26 +72,26 @@ export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule }) => {
         onClose();
       }}
       title="Track Your Clinic Appointment & Medical Slip"
-      subtitle="Enter your Reference Code (e.g. EAR-XXXX) or Student ID Number"
+      subtitle="Enter your Reference Code (e.g. EAR-XXXX), ID Number, or Registered Email"
     >
       <div className="space-y-6">
         {/* Search Bar */}
-        <form onSubmit={handleSearch} className="flex gap-2">
+        <form onSubmit={handleSearch} className="flex gap-2.5">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="e.g. EAR-2026-A109 or 234-0000M"
+              placeholder="e.g. EAR-2026-A109, Student ID, or Registered Email"
               required
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson uppercase font-medium"
+              className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson font-medium"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="px-5 py-2.5 rounded-xl text-xs font-bold text-white earist-gradient hover:opacity-95 shadow-xs shrink-0 flex items-center gap-1.5 cursor-pointer"
+            className="px-6 py-3 rounded-xl text-sm font-bold text-white earist-gradient hover:brightness-105 shadow-xs shrink-0 flex items-center gap-2 cursor-pointer transition-colors"
           >
             {loading ? 'Searching...' : 'Track Ticket'}
           </button>
@@ -113,21 +113,30 @@ export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule }) => {
 
         {/* Appointment Ticket Result */}
         {appointment && (
-          <div className="border border-slate-200 rounded-2xl p-5 bg-slate-50/50 space-y-4">
-            <div className="flex items-start justify-between border-b border-slate-200 pb-3">
+          <div className="border border-slate-200 rounded-2xl p-6 bg-slate-50/70 space-y-5">
+            <div className="flex items-start justify-between border-b border-slate-200 pb-4">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-earist-crimson bg-red-50 px-2 py-0.5 rounded border border-red-200">
-                  {appointment.patient_type === 'student' ? 'Student Patient' : 'Faculty / Staff'}
+                <span className="text-xs font-bold uppercase tracking-wider text-earist-crimson bg-red-50 px-2.5 py-1 rounded-md border border-red-200">
+                  {appointment.patient_type === 'student'
+                    ? 'Student'
+                    : appointment.patient_type === 'outsource_extension'
+                    ? 'Outsource / Extension'
+                    : 'Academic / Non-Academic'}
                 </span>
-                <h4 className="text-base font-extrabold text-slate-900 mt-1">
+                <h4 className="text-lg font-bold text-slate-900 mt-2">
                   {appointment.patient_name}
                 </h4>
-                <p className="text-xs text-slate-500 font-mono">
+                <p className="text-sm text-slate-500 font-mono mt-0.5">
                   ID: {appointment.id_number} • {appointment.department} {appointment.year_section && `(${appointment.year_section})`}
                 </p>
+                {appointment.email && (
+                  <p className="text-xs text-slate-500 font-mono mt-0.5">
+                    Email: {appointment.email}
+                  </p>
+                )}
               </div>
               <div className="text-right">
-                <span className="text-xs font-mono font-bold text-slate-800 block">
+                <span className="text-sm font-mono font-extrabold text-slate-900 block">
                   {appointment.reference_code}
                 </span>
                 <Badge status={appointment.status} className="mt-1" />
@@ -137,44 +146,38 @@ export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule }) => {
             {/* Live Queue Position Card (shown for today's active appointments) */}
             {appointment.is_today && ['Approved', 'OnGoing'].includes(appointment.status) && (
               <div
-                className={`p-4 rounded-2xl border text-xs ${
+                className={`p-4 rounded-xl border text-sm ${
                   appointment.status === 'OnGoing'
-                    ? 'bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/10 border-emerald-300'
-                    : 'bg-gradient-to-r from-amber-500/10 via-red-500/10 to-amber-500/10 border-amber-300'
+                    ? 'bg-emerald-50 border-emerald-300'
+                    : 'bg-amber-50 border-amber-300'
                 }`}
               >
                 {appointment.status === 'OnGoing' ? (
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold animate-pulse shrink-0">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold shrink-0">
                       <Stethoscope className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                        <span className="font-extrabold text-emerald-900 uppercase tracking-wider text-[11px]">
-                          Now Serving Inside Consultation Room
-                        </span>
-                      </div>
-                      <p className="text-xs font-bold text-slate-800 mt-0.5">
+                      <span className="font-extrabold text-emerald-900 uppercase tracking-wider text-xs">
+                        Now Serving Inside Consultation Room
+                      </span>
+                      <p className="text-sm font-semibold text-slate-900 mt-0.5">
                         Dr. {appointment.doctor_first_name} {appointment.doctor_last_name} is actively consulting with you.
                       </p>
                     </div>
                   </div>
                 ) : (
                   <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl earist-gradient text-white flex flex-col items-center justify-center font-bold shrink-0 shadow-xs">
-                        <span className="text-[9px] uppercase tracking-tighter text-amber-200">Queue</span>
-                        <span className="text-base font-extrabold leading-none">#{appointment.queue_position || 1}</span>
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-11 h-11 rounded-xl earist-gradient text-white flex flex-col items-center justify-center font-bold shrink-0 shadow-xs">
+                        <span className="text-[10px] uppercase tracking-tighter text-amber-200">Queue</span>
+                        <span className="text-lg font-extrabold leading-none">#{appointment.queue_position || 1}</span>
                       </div>
                       <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                          <span className="font-extrabold text-slate-900 uppercase tracking-wider text-[11px]">
-                            Live Clinic Queue Position
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-600 mt-0.5">
+                        <span className="font-bold text-slate-900 uppercase tracking-wider text-xs">
+                          Live Clinic Queue Position
+                        </span>
+                        <p className="text-sm text-slate-700 mt-0.5">
                           {appointment.patients_ahead === 0 ? (
                             <strong className="text-emerald-700">You are next in line! Please wait near {appointment.room_number || 'Room 101'}.</strong>
                           ) : (
@@ -191,27 +194,27 @@ export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule }) => {
             )}
 
             {/* Schedule & Station */}
-            <div className="grid sm:grid-cols-2 gap-2.5 text-xs text-slate-600">
-              <div className="p-2.5 rounded-xl bg-white border border-slate-200/80">
-                <span className="text-[10px] font-bold text-slate-400 block uppercase">Appointment Time</span>
-                <div className="font-bold text-slate-900 mt-0.5 flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-amber-600" />
+            <div className="grid sm:grid-cols-2 gap-3 text-sm text-slate-700">
+              <div className="p-3.5 rounded-xl bg-white border border-slate-200">
+                <span className="text-xs font-bold text-slate-400 block uppercase">Appointment Time</span>
+                <div className="font-bold text-slate-900 mt-1 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-amber-600" />
                   {appointment.appointment_date}
                 </div>
-                <div className="text-slate-600 text-[11px] flex items-center gap-1.5 mt-0.5">
-                  <Clock className="w-3.5 h-3.5 text-blue-600" />
+                <div className="text-slate-600 text-xs flex items-center gap-2 mt-1">
+                  <Clock className="w-4 h-4 text-blue-600" />
                   {appointment.time_slot}
                 </div>
               </div>
 
-              <div className="p-2.5 rounded-xl bg-white border border-slate-200/80">
-                <span className="text-[10px] font-bold text-slate-400 block uppercase">Assigned Medical Station</span>
-                <div className="font-bold text-earist-dark mt-0.5 flex items-center gap-1.5">
-                  <Stethoscope className="w-3.5 h-3.5 text-earist-crimson" />
+              <div className="p-3.5 rounded-xl bg-white border border-slate-200">
+                <span className="text-xs font-bold text-slate-400 block uppercase">Assigned Medical Station</span>
+                <div className="font-bold text-earist-dark mt-1 flex items-center gap-2">
+                  <Stethoscope className="w-4 h-4 text-earist-crimson" />
                   Dr. {appointment.doctor_first_name} {appointment.doctor_last_name}
                 </div>
-                <div className="text-slate-600 text-[11px] flex items-center gap-1.5 mt-0.5">
-                  <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                <div className="text-slate-600 text-xs flex items-center gap-2 mt-1">
+                  <MapPin className="w-4 h-4 text-emerald-600" />
                   {appointment.room_number || 'Main Clinic Rm 101'}
                 </div>
               </div>

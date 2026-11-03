@@ -63,7 +63,7 @@ function initSchema(database) {
     CREATE TABLE IF NOT EXISTS appointments (
       appointment_id INTEGER PRIMARY KEY AUTOINCREMENT,
       reference_code TEXT UNIQUE NOT NULL,
-      patient_type TEXT CHECK(patient_type IN ('student', 'faculty_staff')) DEFAULT 'student',
+      patient_type TEXT CHECK(patient_type IN ('student', 'faculty_staff', 'academic_non_academic', 'outsource_extension')) DEFAULT 'student',
       patient_name TEXT NOT NULL,
       id_number TEXT NOT NULL,
       department TEXT NOT NULL,
@@ -73,6 +73,7 @@ function initSchema(database) {
       gender TEXT,
       address TEXT,
       contact_number TEXT NOT NULL,
+      email TEXT,
       symptoms TEXT,
       symptom_severity TEXT CHECK(symptom_severity IN ('Mild', 'Moderate', 'Severe')) DEFAULT 'Mild',
       allergies TEXT,
@@ -90,6 +91,62 @@ function initSchema(database) {
       FOREIGN KEY (assistant_id) REFERENCES assistants(assistant_id) ON DELETE CASCADE
     );
   `);
+
+  // Ensure patient_type check constraint includes all categories
+  try {
+    const tableSql = database.prepare("SELECT sql FROM sqlite_master WHERE name='appointments'").get()?.sql || '';
+    if (tableSql && !tableSql.includes('academic_non_academic')) {
+      database.exec('PRAGMA foreign_keys = OFF;');
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS appointments_new (
+          appointment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          reference_code TEXT UNIQUE NOT NULL,
+          patient_type TEXT CHECK(patient_type IN ('student', 'faculty_staff', 'academic_non_academic', 'outsource_extension')) DEFAULT 'student',
+          patient_name TEXT NOT NULL,
+          id_number TEXT NOT NULL,
+          department TEXT NOT NULL,
+          course TEXT,
+          year_section TEXT,
+          age INTEGER,
+          gender TEXT,
+          address TEXT,
+          contact_number TEXT NOT NULL,
+          symptoms TEXT,
+          symptom_severity TEXT CHECK(symptom_severity IN ('Mild', 'Moderate', 'Severe')) DEFAULT 'Mild',
+          allergies TEXT,
+          medical_history TEXT,
+          assistant_id INTEGER NOT NULL,
+          appointment_date TEXT NOT NULL,
+          time_slot TEXT NOT NULL,
+          service_type TEXT NOT NULL,
+          status TEXT CHECK(status IN ('Pending', 'Approved', 'OnGoing', 'Completed', 'Cancelled')) DEFAULT 'Approved',
+          reason TEXT,
+          diagnosis TEXT,
+          prescription TEXT,
+          dosage_instructions TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (assistant_id) REFERENCES assistants(assistant_id) ON DELETE CASCADE
+        );
+        INSERT INTO appointments_new SELECT * FROM appointments;
+        DROP TABLE appointments;
+        ALTER TABLE appointments_new RENAME TO appointments;
+      `);
+      database.exec('PRAGMA foreign_keys = ON;');
+    }
+  } catch (e) {
+    // Already migrated or table just created
+  }
+
+  // Ensure email column exists in appointments table
+  try {
+    const cols = database.prepare("PRAGMA table_info(appointments);").all();
+    const hasEmail = cols.some((c) => c.name === 'email');
+    if (!hasEmail) {
+      database.exec("ALTER TABLE appointments ADD COLUMN email TEXT;");
+    }
+  } catch (e) {
+    console.error('Error adding email column:', e);
+  }
 }
 
 module.exports = { getDb };
