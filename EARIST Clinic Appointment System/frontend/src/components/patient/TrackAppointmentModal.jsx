@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
 import { Badge } from '../common/Badge';
 import { Search, Calendar, Clock, Stethoscope, MapPin, CheckCircle2, Printer, AlertCircle, FileText, ArrowRight, XCircle } from 'lucide-react';
 
-export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule }) => {
+export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule, initialQuery = '' }) => {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [appointment, setAppointment] = useState(null);
@@ -11,9 +11,9 @@ export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule }) => {
   const [cancelling, setCancelling] = useState(false);
   const [actionNotice, setActionNotice] = useState('');
 
-  const handleSearch = async (e) => {
-    if (e) e.preventDefault();
-    if (!query.trim()) return;
+  const performSearch = async (targetQuery) => {
+    const q = (targetQuery !== undefined ? targetQuery : query || '').trim();
+    if (!q) return;
 
     setLoading(true);
     setError('');
@@ -21,7 +21,7 @@ export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule }) => {
     setAppointment(null);
 
     try {
-      const res = await fetch(`/api/appointments/track/${encodeURIComponent(query.trim())}`);
+      const res = await fetch(`/api/appointments/track/${encodeURIComponent(q)}`);
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.message || 'No appointment found.');
@@ -33,6 +33,23 @@ export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule }) => {
       setLoading(false);
     }
   };
+
+  const handleSearch = (e) => {
+    if (e) e.preventDefault();
+    performSearch(query);
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialQuery && initialQuery.trim()) {
+        setQuery(initialQuery.trim());
+        performSearch(initialQuery.trim());
+      }
+    } else {
+      setError('');
+      setActionNotice('');
+    }
+  }, [isOpen, initialQuery]);
 
   const handleCancelAppointment = async () => {
     if (!appointment) return;

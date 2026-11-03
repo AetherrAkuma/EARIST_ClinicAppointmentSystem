@@ -17,10 +17,16 @@ const MainApp = () => {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [isTrackOpen, setIsTrackOpen] = useState(false);
   const [bookingInitialData, setBookingInitialData] = useState(null);
+  const [trackInitialQuery, setTrackInitialQuery] = useState('');
 
   const handleOpenBooking = (initialData = null) => {
     setBookingInitialData(initialData);
     setIsBookingOpen(true);
+  };
+
+  const handleOpenTrack = (query = '') => {
+    setTrackInitialQuery(typeof query === 'string' ? query : '');
+    setIsTrackOpen(true);
   };
 
   if (loading) {
@@ -45,7 +51,7 @@ const MainApp = () => {
         currentTab={currentView}
         onNavigate={(view) => setCurrentView(view)}
         onOpenBooking={() => handleOpenBooking(null)}
-        onOpenTrack={() => setIsTrackOpen(true)}
+        onOpenTrack={handleOpenTrack}
       />
 
       <main className="flex-1">
@@ -77,7 +83,7 @@ const MainApp = () => {
                       Book Appointment
                     </button>
                     <button
-                      onClick={() => setIsTrackOpen(true)}
+                      onClick={() => handleOpenTrack('')}
                       className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors"
                     >
                       Track Ticket
@@ -98,14 +104,14 @@ const MainApp = () => {
                 <LandingPage
                   onNavigate={(view) => setCurrentView(view)}
                   onOpenBooking={() => handleOpenBooking(null)}
-                  onOpenTrack={() => setIsTrackOpen(true)}
+                  onOpenTrack={handleOpenTrack}
                 />
               )}
               {currentView === 'login' && (
                 <LoginPage
                   onNavigate={(view) => setCurrentView(view)}
                   onOpenBooking={() => handleOpenBooking(null)}
-                  onOpenTrack={() => setIsTrackOpen(true)}
+                  onOpenTrack={handleOpenTrack}
                 />
               )}
             </motion.div>
@@ -125,9 +131,14 @@ const MainApp = () => {
       />
       <TrackAppointmentModal
         isOpen={isTrackOpen}
-        onClose={() => setIsTrackOpen(false)}
+        initialQuery={trackInitialQuery}
+        onClose={() => {
+          setIsTrackOpen(false);
+          setTrackInitialQuery('');
+        }}
         onReschedule={(apptData) => {
           setIsTrackOpen(false);
+          setTrackInitialQuery('');
           handleOpenBooking(apptData);
         }}
       />

@@ -83,3 +83,4 @@ router.post('/apply-update', authenticateToken, requireRole(['admin']), async (r
 });
 
 module.exports = router;
+

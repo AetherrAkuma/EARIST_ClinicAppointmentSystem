@@ -1,7 +1,15 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import { Mail, Lock, Eye, EyeOff, LogIn, Sparkles, User, Shield, Stethoscope, AlertCircle } from 'lucide-react';
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  LogIn,
+  Shield,
+  AlertCircle
+} from 'lucide-react';
 
 export const LoginPage = ({ onNavigate, onOpenBooking, onOpenTrack }) => {
   const { login } = useAuth();
@@ -26,12 +34,6 @@ export const LoginPage = ({ onNavigate, onOpenBooking, onOpenTrack }) => {
     }
   };
 
-  const setDemoCredentials = (demoEmail) => {
-    setEmail(demoEmail);
-    setPassword('password123');
-    setError('');
-  };
-
   return (
     <div className="min-h-[calc(100vh-72px)] flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-slate-50">
       <motion.div
@@ -41,53 +43,17 @@ export const LoginPage = ({ onNavigate, onOpenBooking, onOpenTrack }) => {
         className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden"
       >
         {/* Header Banner */}
-        <div className="p-8 text-center earist-gradient text-white relative">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center mb-3 shadow-inner">
-            <Sparkles className="w-7 h-7 text-earist-gold" />
+        <div className="p-8 text-center bg-[#800020] text-white relative border-b border-[#9e1b32]">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center mb-3 shadow-sm">
+            <Shield className="w-7 h-7 text-amber-400" />
           </div>
-          <h2 className="text-2xl font-extrabold tracking-tight">Staff & Admin Portal</h2>
+          <h2 className="text-2xl font-extrabold tracking-tight">Staff & Medical Officer Portal</h2>
           <p className="text-xs text-amber-100/90 font-medium mt-1">
-            EARIST-Manila Campus Health Directorate
+            EARIST Manila Campus Health Services Directorate
           </p>
-          <span className="inline-block mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-400 text-amber-950 uppercase tracking-wider">
-            Medical Staff Sign-In Only
+          <span className="inline-block mt-2 px-3 py-0.5 rounded-full text-[10px] font-bold bg-amber-400 text-amber-950 uppercase tracking-wider">
+            Authorized Personnel Only
           </span>
-        </div>
-
-        {/* Quick-Fill Demo Chips */}
-        <div className="p-4 bg-slate-50 border-b border-slate-200">
-          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">
-            One-Click Staff Demo Credentials:
-          </p>
-          <div className="grid grid-cols-3 gap-2 text-xs">
-            <button
-              type="button"
-              onClick={() => setDemoCredentials('dr.bob@earist.edu.ph')}
-              className="flex flex-col items-center justify-center p-2 rounded-xl bg-white border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/50 text-slate-700 font-medium transition-all text-center"
-            >
-              <Stethoscope className="w-4 h-4 text-emerald-600 mb-1" />
-              <span className="text-[11px] font-bold">Dr. Bob</span>
-              <span className="text-[9px] text-slate-400">Physician</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setDemoCredentials('dr.alice@earist.edu.ph')}
-              className="flex flex-col items-center justify-center p-2 rounded-xl bg-white border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 text-slate-700 font-medium transition-all text-center"
-            >
-              <Sparkles className="w-4 h-4 text-blue-600 mb-1" />
-              <span className="text-[11px] font-bold">Dr. Alice</span>
-              <span className="text-[9px] text-slate-400">Dentist</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setDemoCredentials('admin@earist.edu.ph')}
-              className="flex flex-col items-center justify-center p-2 rounded-xl bg-white border border-slate-200 hover:border-red-400 hover:bg-red-50/50 text-slate-700 font-medium transition-all text-center"
-            >
-              <Shield className="w-4 h-4 text-red-600 mb-1" />
-              <span className="text-[11px] font-bold">Admin</span>
-              <span className="text-[9px] text-slate-400">Directorate</span>
-            </button>
-          </div>
         </div>
 
         {/* Form Body */}
