@@ -27,7 +27,7 @@ async function sendViaBrevoApi({ to, subject, htmlContent }) {
   if (!apiKey || apiKey.includes('your_brevo_api_key_here') || apiKey.trim() === '') return null;
 
   try {
-    const fromEmail = process.env.BREVO_SENDER_EMAIL || 'no-reply@e-clinic.ragetech.dev';
+    const fromEmail = process.env.BREVO_SENDER_EMAIL || 'no-reply@uplift.ragetech.dev';
     const fromName = process.env.BREVO_SENDER_NAME || 'EARIST e-Clinic';
 
     const response = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -103,7 +103,7 @@ async function sendAppointmentConfirmationEmail(details) {
       ? 'Outsource / Extension Personnel'
       : 'Academic / Non-Academic Personnel';
 
-  const fromAddress = process.env.SMTP_FROM || process.env.BREVO_SENDER_EMAIL || '"EARIST e-Clinic" <no-reply@e-clinic.ragetech.dev>';
+  const fromAddress = process.env.SMTP_FROM || process.env.BREVO_SENDER_EMAIL || '"EARIST e-Clinic" <no-reply@uplift.ragetech.dev>';
   const subject = `EARIST Clinic Appointment Confirmation — Ticket #${reference_code}`;
 
   const htmlContent = `
@@ -257,7 +257,7 @@ async function sendOtpVerificationEmail(email, otpCode) {
   }
 
   const subject = `Your EARIST Clinic Verification Code: ${otpCode}`;
-  const fromAddress = process.env.SMTP_FROM || process.env.BREVO_SENDER_EMAIL || '"EARIST e-Clinic" <no-reply@e-clinic.ragetech.dev>';
+  const fromAddress = process.env.SMTP_FROM || process.env.BREVO_SENDER_EMAIL || '"EARIST e-Clinic" <no-reply@uplift.ragetech.dev>';
 
   const htmlContent = `
 <!DOCTYPE html>

@@ -1,4 +1,6 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
+require('dotenv').config(); // fallback to current working directory
 const express = require('express');
 const cors = require('cors');
 const { getDb } = require('./config/db');
