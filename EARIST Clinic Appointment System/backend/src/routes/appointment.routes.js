@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { getDb } = require('../config/db');
 const { authenticateToken, requireRole, JWT_SECRET } = require('../middleware/auth');
-const { sendAppointmentConfirmationEmail, sendOtpVerificationEmail } = require('../services/email.service');
+const { sendAppointmentConfirmationEmail, sendOtpVerificationEmail, sendPrescriptionEmail } = require('../services/email.service');
 const { createRateLimiter } = require('../middleware/rateLimiter');
 const { verifyTurnstileToken } = require('../services/turnstile.service');
 
@@ -941,6 +941,91 @@ router.patch('/:id/status', authenticateToken, requireRole(['assistant', 'admin'
     weight_kg !== undefined && weight_kg !== '' ? parseFloat(weight_kg) : null,
     id
   );
+
+  // If appointment is marked Completed, dispatch official prescription & consultation summary email
+  if (status === 'Completed') {
+    try {
+      const updatedAppt = db.prepare(`
+        SELECT ap.*, 
+               u.first_name AS doctor_first_name, 
+               u.last_name AS doctor_last_name,
+               ast.specialization AS doctor_specialization, 
+               ast.room_number
+        FROM appointments ap
+        LEFT JOIN assistants ast ON ap.assistant_id = ast.assistant_id
+        LEFT JOIN users u ON ast.user_id = u.id
+        WHERE ap.appointment_id = ?
+      `).get(id);
+
+      const targetPatientEmail = (updatedAppt.email || updatedAppt.patient_email || '').trim().toLowerCase();
+
+      let doctorName = null;
+      if (updatedAppt.doctor_first_name) {
+        doctorName = `${updatedAppt.doctor_first_name} ${updatedAppt.doctor_last_name}`;
+      } else if (req.user && req.user.first_name) {
+        doctorName = `${req.user.first_name} ${req.user.last_name}`;
+      }
+
+      if (targetPatientEmail && targetPatientEmail.includes('@')) {
+        sendPrescriptionEmail({
+          email: targetPatientEmail,
+          reference_code: updatedAppt.reference_code,
+          patient_name: updatedAppt.patient_name,
+          id_number: updatedAppt.id_number,
+          patient_type: updatedAppt.patient_type,
+          department: updatedAppt.department,
+          course: updatedAppt.course,
+          year_section: updatedAppt.year_section,
+          doctor_name: doctorName,
+          doctor_specialization: updatedAppt.doctor_specialization || 'General Physician & Campus Triage',
+          room_number: updatedAppt.room_number || 'Main Clinic Rm 101',
+          appointment_date: updatedAppt.appointment_date,
+          time_slot: updatedAppt.time_slot,
+          service_type: updatedAppt.service_type,
+          symptoms: updatedAppt.symptoms,
+          symptom_severity: updatedAppt.symptom_severity,
+          allergies: updatedAppt.allergies,
+          reason: updatedAppt.reason,
+          bp_systolic: updatedAppt.bp_systolic,
+          bp_diastolic: updatedAppt.bp_diastolic,
+          temperature: updatedAppt.temperature,
+          pulse_rate: updatedAppt.pulse_rate,
+          respiratory_rate: updatedAppt.respiratory_rate,
+          spo2: updatedAppt.spo2,
+          weight_kg: updatedAppt.weight_kg,
+          diagnosis: updatedAppt.diagnosis || diagnosis || 'Clinically evaluated. Fit for regular campus activities.',
+          prescription: updatedAppt.prescription || prescription || 'None prescribed.',
+          dosage_instructions: updatedAppt.dosage_instructions || dosage_instructions || 'Rest adequately and maintain proper hydration.'
+        }).catch(err => {
+          console.error('[Async Prescription Email Error]:', err.message);
+        });
+
+        try {
+          db.prepare(`
+            INSERT INTO email_notifications (
+              appointment_id, recipient_email, subject, reference_code, template_name, status
+            )
+            VALUES (?, ?, ?, ?, 'prescription_summary', 'Sent')
+          `).run(
+            updatedAppt.appointment_id,
+            targetPatientEmail,
+            `EARIST Clinic Consultation Summary & Prescription - Ref: ${updatedAppt.reference_code}`,
+            updatedAppt.reference_code
+          );
+        } catch (notifErr) {
+          console.warn('[appointments] Warning logging prescription email notification:', notifErr.message);
+        }
+
+        return res.json({
+          success: true,
+          message: `Appointment marked as Completed. Prescription and medical summary dispatched to ${targetPatientEmail}.`,
+          email_sent_to: targetPatientEmail
+        });
+      }
+    } catch (consultErr) {
+      console.error('[Error dispatching prescription summary]:', consultErr);
+    }
+  }
 
   return res.json({
     success: true,

@@ -53,6 +53,7 @@ export const DoctorDashboard = () => {
   const [diagnosis, setDiagnosis] = useState('');
   const [prescription, setPrescription] = useState('');
   const [dosageInstructions, setDosageInstructions] = useState('');
+  const [dischargeNotice, setDischargeNotice] = useState(null);
   const [updating, setUpdating] = useState(false);
 
   // Vitals State in Consultation
@@ -258,6 +259,13 @@ export const DoctorDashboard = () => {
       if (data.success) {
         setConsultationAppt(null);
         fetchDoctorData();
+        if (data.email_sent_to) {
+          setDischargeNotice(`Patient discharged! Prescription & clinical summary emailed to ${data.email_sent_to}.`);
+          setTimeout(() => setDischargeNotice(null), 10000);
+        } else {
+          setDischargeNotice('Patient discharged and recorded into the clinic logsheet.');
+          setTimeout(() => setDischargeNotice(null), 6000);
+        }
       }
     } catch (err) {
       alert('Failed to complete consultation');
@@ -440,6 +448,27 @@ export const DoctorDashboard = () => {
           </button>
         </div>
       </motion.div>
+
+      {/* Prescription Email & Discharge Confirmation Banner */}
+      {dischargeNotice && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-sm font-semibold flex items-center justify-between shadow-xs"
+        >
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <span>{dischargeNotice}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDischargeNotice(null)}
+            className="text-emerald-700 hover:text-emerald-950 font-bold px-2 py-1 text-xs cursor-pointer"
+          >
+            ✕
+          </button>
+        </motion.div>
+      )}
 
       {/* Navigation Tabs */}
       <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100 rounded-2xl w-fit">
