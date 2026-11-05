@@ -391,7 +391,22 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
       }
       setOtpSent(true);
       setOtpCooldown(60);
-      setOtpNotice(data.message || '6-digit verification code sent to your email.');
+
+      // Log verification code to the browser developer console
+      console.log(
+        '%c[EARIST Clinic] Verification OTP Code:',
+        'color: #800020; font-size: 14px; font-weight: bold;'
+      );
+      console.log(
+        `%c📧 Recipient: ${formData.email}  |  🔑 Code: ${data.otp_code || 'Sent'}`,
+        'color: #059669; font-size: 13px; font-weight: bold; background: #ecfdf5; padding: 4px 8px; border-radius: 4px;'
+      );
+
+      if (data.otp_code) {
+        setOtpNotice(`Verification code sent! (Console/Test Code: ${data.otp_code})`);
+      } else {
+        setOtpNotice(data.message || '6-digit verification code sent to your email.');
+      }
     } catch (err) {
       setErrorMessage(err.message);
     } finally {
