@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { Badge } from '../components/common/Badge';
+import { Modal } from '../components/common/Modal';
+import { WalkInModal } from '../components/doctor/WalkInModal';
+import { PatientHistoryModal } from '../components/doctor/PatientHistoryModal';
 import {
   Shield,
   Users,
@@ -24,7 +27,13 @@ import {
   HardDrive,
   AlertTriangle,
   Terminal,
-  CheckCircle
+  CheckCircle,
+  UserPlus,
+  Edit3,
+  Key,
+  History,
+  UserCheck,
+  UserX
 } from 'lucide-react';
 
 export const AdminDashboard = () => {
@@ -46,6 +55,29 @@ export const AdminDashboard = () => {
   const [updateLogs, setUpdateLogs] = useState([]);
   const [updateError, setUpdateError] = useState(null);
   const [updateSuccess, setUpdateSuccess] = useState(false);
+
+  // Staff Management State
+  const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+  const [addStaffForm, setAddStaffForm] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    id_number: '',
+    contact_number: '',
+    specialization: 'General Campus Medicine',
+    room_number: 'Clinic Rm 101',
+    initial_password: 'earist2026!'
+  });
+  const [editingStaff, setEditingStaff] = useState(null);
+  const [resetPwStaff, setResetPwStaff] = useState(null);
+  const [newPasswordInput, setNewPasswordInput] = useState('earist2026!');
+  const [staffSubmitting, setStaffSubmitting] = useState(false);
+  const [staffError, setStaffError] = useState('');
+  const [staffSuccess, setStaffSuccess] = useState('');
+
+  // Walk-In and History Modals
+  const [showWalkInModal, setShowWalkInModal] = useState(false);
+  const [historyPatient, setHistoryPatient] = useState(null);
 
   const fetchAdminData = async () => {
     try {
@@ -87,6 +119,132 @@ export const AdminDashboard = () => {
     fetchAdminData();
     fetchSystemVersion();
   }, []);
+
+  const handleAddStaff = async (e) => {
+    e.preventDefault();
+    setStaffSubmitting(true);
+    setStaffError('');
+    setStaffSuccess('');
+
+    try {
+      const res = await fetch('/api/admin/staff', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(addStaffForm)
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to create staff member.');
+      }
+
+      setStaffSuccess(`Staff member created! Initial password: ${data.initial_password}`);
+      setShowAddStaffModal(false);
+      setAddStaffForm({
+        first_name: '',
+        last_name: '',
+        email: '',
+        id_number: '',
+        contact_number: '',
+        specialization: 'General Campus Medicine',
+        room_number: 'Clinic Rm 101',
+        initial_password: 'earist2026!'
+      });
+      fetchAdminData();
+    } catch (err) {
+      setStaffError(err.message || 'Error creating staff account.');
+    } finally {
+      setStaffSubmitting(false);
+    }
+  };
+
+  const handleUpdateStaff = async (e) => {
+    e.preventDefault();
+    if (!editingStaff) return;
+    setStaffSubmitting(true);
+    setStaffError('');
+
+    try {
+      const res = await fetch(`/api/admin/staff/${editingStaff.assistant_id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          first_name: editingStaff.first_name,
+          last_name: editingStaff.last_name,
+          contact_number: editingStaff.contact_number,
+          id_number: editingStaff.id_number,
+          specialization: editingStaff.specialization,
+          room_number: editingStaff.room_number,
+          is_on_duty: editingStaff.is_on_duty,
+          is_active: editingStaff.is_active
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to update staff station.');
+      }
+
+      setEditingStaff(null);
+      fetchAdminData();
+    } catch (err) {
+      setStaffError(err.message || 'Error updating staff.');
+    } finally {
+      setStaffSubmitting(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!resetPwStaff) return;
+    setStaffSubmitting(true);
+    setStaffError('');
+
+    try {
+      const res = await fetch(`/api/admin/staff/${resetPwStaff.assistant_id}/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ new_password: newPasswordInput.trim() || 'earist2026!' })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to reset password.');
+      }
+
+      alert(`Password successfully reset! Provide the staff member with the new password: ${newPasswordInput.trim() || 'earist2026!'}`);
+      setResetPwStaff(null);
+    } catch (err) {
+      setStaffError(err.message || 'Error resetting password.');
+    } finally {
+      setStaffSubmitting(false);
+    }
+  };
+
+  const handleToggleStaffActive = async (astId, currentActive) => {
+    try {
+      const res = await fetch(`/api/admin/staff/${astId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ is_active: currentActive ? 0 : 1 })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchAdminData();
+      }
+    } catch (err) {
+      console.error('Error toggling staff status:', err);
+    }
+  };
 
   const handleCheckUpdates = async () => {
     setCheckingUpdates(true);
@@ -379,28 +537,54 @@ export const AdminDashboard = () => {
           </div>
 
           {activeTab !== 'updates' && (
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               {activeTab === 'appointments' && (
-                <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
-                  {[
-                    { id: 'all', label: 'All' },
-                    { id: 'student', label: 'Students' },
-                    { id: 'academic_non_academic', label: 'Academic/Staff' },
-                    { id: 'outsource_extension', label: 'Outsource/Ext.' }
-                  ].map((f) => (
-                    <button
-                      key={f.id}
-                      onClick={() => setCategoryFilter(f.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        categoryFilter === f.id
-                          ? 'bg-white text-earist-dark shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowWalkInModal(true)}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[#800020] text-white hover:brightness-105 shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                    title="Intake acute walk-in patient at clinic desk"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>+ Walk-In Patient</span>
+                  </button>
+
+                  <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+                    {[
+                      { id: 'all', label: 'All' },
+                      { id: 'student', label: 'Students' },
+                      { id: 'academic_non_academic', label: 'Academic/Staff' },
+                      { id: 'outsource_extension', label: 'Outsource/Ext.' }
+                    ].map((f) => (
+                      <button
+                        key={f.id}
+                        onClick={() => setCategoryFilter(f.id)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          categoryFilter === f.id
+                            ? 'bg-white text-earist-dark shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'users' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStaffError('');
+                    setShowAddStaffModal(true);
+                  }}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[#800020] text-white hover:brightness-105 shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>+ Add Clinic Staff</span>
+                </button>
               )}
 
               <div className="relative">
@@ -453,9 +637,19 @@ export const AdminDashboard = () => {
                         </td>
 
                         <td className="py-4 px-5 whitespace-nowrap">
-                          <span className="font-mono font-bold text-earist-crimson bg-red-50 px-2.5 py-1 rounded-md border border-red-200 text-xs">
-                            {appt.reference_code || `APP-${appt.appointment_id}`}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-bold text-earist-crimson bg-red-50 px-2.5 py-1 rounded-md border border-red-200 text-xs">
+                              {appt.reference_code || `APP-${appt.appointment_id}`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setHistoryPatient({ idNumber: appt.id_number, patientName: appt.patient_name })}
+                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-earist-dark transition-colors cursor-pointer"
+                              title="View Patient Full Clinic History"
+                            >
+                              <History className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
 
                         <td className="py-4 px-5 whitespace-nowrap">
@@ -553,12 +747,13 @@ export const AdminDashboard = () => {
                   <th className="py-4 px-5">Role & Station</th>
                   <th className="py-4 px-5">Contact Details</th>
                   <th className="py-4 px-5">Duty Status</th>
+                  <th className="py-4 px-5 text-right">Station Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="py-12 text-center text-slate-400 font-medium">
+                    <td colSpan={5} className="py-12 text-center text-slate-400 font-medium">
                       No matching campus clinic staff found.
                     </td>
                   </tr>
@@ -606,6 +801,54 @@ export const AdminDashboard = () => {
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600">
                             OFF DUTY
                           </span>
+                        )}
+                      </td>
+
+                      <td className="py-4 px-5 whitespace-nowrap text-right">
+                        {u.role === 'assistant' ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setStaffError('');
+                                setEditingStaff({ ...u });
+                              }}
+                              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors flex items-center gap-1 cursor-pointer"
+                              title="Edit Doctor Station & Specialization"
+                            >
+                              <Edit3 className="w-3.5 h-3.5 text-slate-500" />
+                              <span>Edit</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setStaffError('');
+                                setResetPwStaff(u);
+                                setNewPasswordInput('earist2026!');
+                              }}
+                              className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 transition-colors flex items-center gap-1 cursor-pointer"
+                              title="Reset Staff Password"
+                            >
+                              <Key className="w-3.5 h-3.5 text-amber-700" />
+                              <span>Reset PW</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleToggleStaffActive(u.assistant_id, u.is_active === 1)}
+                              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+                                u.is_active === 1
+                                  ? 'bg-emerald-50 hover:bg-rose-50 text-emerald-800 hover:text-rose-800 border-emerald-200 hover:border-rose-200'
+                                  : 'bg-slate-100 text-slate-500 border-slate-300'
+                              }`}
+                              title={u.is_active === 1 ? 'Click to Deactivate Account' : 'Click to Activate Account'}
+                            >
+                              {u.is_active === 1 ? 'Active' : 'Inactive'}
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">Primary Directorate Account</span>
                         )}
                       </td>
                     </tr>
@@ -851,6 +1094,266 @@ export const AdminDashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Add Staff Modal */}
+      {showAddStaffModal && (
+        <Modal
+          isOpen={showAddStaffModal}
+          onClose={() => setShowAddStaffModal(false)}
+          title="Register New Clinic Medical Officer / Staff"
+          subtitle="Create an authorized clinic doctor account with pre-seeded appointment shifts"
+          maxWidth="max-w-xl"
+        >
+          <form onSubmit={handleAddStaff} className="space-y-4 text-sm">
+            {staffError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{staffError}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">First Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Maria"
+                  value={addStaffForm.first_name}
+                  onChange={(e) => setAddStaffForm({ ...addStaffForm, first_name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Last Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Santos"
+                  value={addStaffForm.last_name}
+                  onChange={(e) => setAddStaffForm({ ...addStaffForm, last_name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Institutional Email *</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="dr.santos@earist.edu.ph"
+                  value={addStaffForm.email}
+                  onChange={(e) => setAddStaffForm({ ...addStaffForm, email: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Employee / Medical ID</label>
+                <input
+                  type="text"
+                  placeholder="MED-2026-015"
+                  value={addStaffForm.id_number}
+                  onChange={(e) => setAddStaffForm({ ...addStaffForm, id_number: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Clinic Room / Station *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Main Clinic Rm 103"
+                  value={addStaffForm.room_number}
+                  onChange={(e) => setAddStaffForm({ ...addStaffForm, room_number: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Specialization / Department</label>
+                <input
+                  type="text"
+                  placeholder="e.g. General Medicine, Dental Health"
+                  value={addStaffForm.specialization}
+                  onChange={(e) => setAddStaffForm({ ...addStaffForm, specialization: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Initial Password</label>
+              <input
+                type="text"
+                placeholder="earist2026!"
+                value={addStaffForm.initial_password}
+                onChange={(e) => setAddStaffForm({ ...addStaffForm, initial_password: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
+              />
+              <span className="text-[11px] text-slate-500 mt-0.5 block">Defaults to earist2026! if left empty.</span>
+            </div>
+
+            <div className="pt-2 flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowAddStaffModal(false)}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={staffSubmitting}
+                className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-[#800020] hover:bg-[#68001a] shadow-xs transition-colors cursor-pointer"
+              >
+                {staffSubmitting ? 'Registering...' : 'Register Staff Account'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Edit Staff Modal */}
+      {editingStaff && (
+        <Modal
+          isOpen={!!editingStaff}
+          onClose={() => setEditingStaff(null)}
+          title={`Edit Station — Dr. ${editingStaff.first_name} ${editingStaff.last_name}`}
+          subtitle={`Employee ID: ${editingStaff.id_number || 'N/A'}`}
+          maxWidth="max-w-md"
+        >
+          <form onSubmit={handleUpdateStaff} className="space-y-4 text-sm">
+            {staffError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold">
+                {staffError}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Clinic Room Number</label>
+              <input
+                type="text"
+                value={editingStaff.room_number || ''}
+                onChange={(e) => setEditingStaff({ ...editingStaff, room_number: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Specialization</label>
+              <input
+                type="text"
+                value={editingStaff.specialization || ''}
+                onChange={(e) => setEditingStaff({ ...editingStaff, specialization: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Contact Number</label>
+              <input
+                type="text"
+                value={editingStaff.contact_number || ''}
+                onChange={(e) => setEditingStaff({ ...editingStaff, contact_number: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
+              />
+            </div>
+
+            <div className="pt-2 flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setEditingStaff(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={staffSubmitting}
+                className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#800020] hover:bg-[#68001a] shadow-xs cursor-pointer"
+              >
+                {staffSubmitting ? 'Saving...' : 'Save Station Changes'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Reset Password Modal */}
+      {resetPwStaff && (
+        <Modal
+          isOpen={!!resetPwStaff}
+          onClose={() => setResetPwStaff(null)}
+          title={`Reset Staff Password — Dr. ${resetPwStaff.first_name} ${resetPwStaff.last_name}`}
+          subtitle={`Account Email: ${resetPwStaff.email}`}
+          maxWidth="max-w-md"
+        >
+          <form onSubmit={handleResetPassword} className="space-y-4 text-sm">
+            {staffError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold">
+                {staffError}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">New Temporary Password</label>
+              <input
+                type="text"
+                required
+                value={newPasswordInput}
+                onChange={(e) => setNewPasswordInput(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
+              />
+              <span className="text-xs text-slate-500 mt-1 block">
+                Share this new password with the medical officer so they can log in to their consultation dashboard.
+              </span>
+            </div>
+
+            <div className="pt-2 flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setResetPwStaff(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={staffSubmitting}
+                className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 shadow-xs cursor-pointer"
+              >
+                {staffSubmitting ? 'Resetting...' : 'Confirm Reset Password'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Acute Walk-In Intake Modal for Admin */}
+      {showWalkInModal && (
+        <WalkInModal
+          isOpen={showWalkInModal}
+          onClose={() => setShowWalkInModal(false)}
+          currentDoctorId={1}
+          onSuccess={() => {
+            fetchAdminData();
+          }}
+        />
+      )}
+
+      {/* Patient Past Visit History Modal */}
+      {historyPatient && (
+        <PatientHistoryModal
+          isOpen={!!historyPatient}
+          onClose={() => setHistoryPatient(null)}
+          idNumber={historyPatient.idNumber}
+          patientName={historyPatient.patientName}
+        />
+      )}
     </div>
   );
 };

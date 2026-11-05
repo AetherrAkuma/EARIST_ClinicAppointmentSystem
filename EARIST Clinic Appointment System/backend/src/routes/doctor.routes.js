@@ -361,8 +361,8 @@ router.put('/my/calendar-day', authenticateToken, requireRole(['assistant', 'adm
   });
 });
 
-// GET /api/doctors/:id/available-slots - Get active slots for a specific doctor & date
-router.get('/:id/available-slots', (req, res) => {
+// GET /api/doctors/:id/available-slots and /api/doctors/:id/check-date - Get active slots for a specific doctor & date
+router.get(['/:id/available-slots', '/:id/check-date'], (req, res) => {
   const { id } = req.params;
   const { date } = req.query;
   const db = getDb();
@@ -373,13 +373,27 @@ router.get('/:id/available-slots', (req, res) => {
 
   const doctor = db.prepare('SELECT * FROM assistants WHERE assistant_id = ?').get(id);
   if (!doctor || doctor.is_on_duty === 0) {
-    return res.json({ success: true, is_available: false, reason: 'Doctor is currently off-duty.', slots: [] });
+    return res.json({
+      success: true,
+      is_available: false,
+      message: 'Doctor is currently off-duty.',
+      reason: 'Doctor is currently off-duty.',
+      slots: [],
+      available_slots: []
+    });
   }
 
   // Check specific date override
   const override = db.prepare('SELECT * FROM doctor_custom_availability WHERE assistant_id = ? AND date = ?').get(id, date);
   if (override && override.is_available === 0) {
-    return res.json({ success: true, is_available: false, reason: 'Doctor is off-duty on this date.', slots: [] });
+    return res.json({
+      success: true,
+      is_available: false,
+      message: override.notes || 'Doctor is off-duty on this date.',
+      reason: override.notes || 'Doctor is off-duty on this date.',
+      slots: [],
+      available_slots: []
+    });
   }
 
   const defaultSlots = [

@@ -1,4 +1,5 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const { getDb } = require('../config/db');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
@@ -227,6 +228,175 @@ router.get('/export', (req, res) => {
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   return res.send(csvLines.join('\n'));
+});
+
+// POST /api/admin/staff - Register a new campus clinic doctor or medical staff
+router.post('/staff', async (req, res) => {
+  const {
+    first_name,
+    last_name,
+    email,
+    id_number,
+    contact_number,
+    specialization,
+    room_number,
+    initial_password
+  } = req.body;
+
+  if (!first_name || !last_name || !email) {
+    return res.status(400).json({
+      success: false,
+      message: 'First name, last name, and institutional email are required.'
+    });
+  }
+
+  const db = getDb();
+  const cleanedEmail = email.trim().toLowerCase();
+
+  const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').get(cleanedEmail);
+  if (existing) {
+    return res.status(409).json({
+      success: false,
+      message: 'A clinic staff account with this email already exists.'
+    });
+  }
+
+  const plainPassword = initial_password || 'earist2026!';
+  const passwordHash = await bcrypt.hash(plainPassword, 10);
+
+  // Atomic insertion
+  const insertUser = db.prepare(`
+    INSERT INTO users (email, password_hash, role, first_name, last_name, id_number, contact_number)
+    VALUES (?, ?, 'assistant', ?, ?, ?, ?)
+  `);
+
+  const userResult = insertUser.run(
+    cleanedEmail,
+    passwordHash,
+    first_name.trim(),
+    last_name.trim(),
+    id_number ? id_number.trim().toUpperCase() : null,
+    contact_number ? contact_number.trim() : null
+  );
+
+  const userId = userResult.lastInsertRowid;
+
+  const insertAssistant = db.prepare(`
+    INSERT INTO assistants (user_id, specialization, room_number, is_on_duty, is_active)
+    VALUES (?, ?, ?, 1, 1)
+  `);
+
+  const astResult = insertAssistant.run(
+    userId,
+    specialization ? specialization.trim() : 'General Campus Medicine',
+    room_number ? room_number.trim() : 'Clinic Rm 101'
+  );
+
+  const assistantId = astResult.lastInsertRowid;
+
+  // Initialize standard Mon-Fri schedule
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const insertSched = db.prepare(`
+    INSERT INTO doctor_schedules (assistant_id, day_of_week, start_time, end_time, max_slots, is_available)
+    VALUES (?, ?, ?, ?, 15, 1)
+  `);
+
+  for (const day of days) {
+    insertSched.run(assistantId, day, '08:00', '12:00');
+    insertSched.run(assistantId, day, '13:00', '17:00');
+  }
+
+  return res.status(201).json({
+    success: true,
+    message: 'Medical officer account successfully created with standard clinic schedules.',
+    user_id: userId,
+    assistant_id: assistantId,
+    initial_password: plainPassword
+  });
+});
+
+// PUT /api/admin/staff/:assistantId - Update staff station, specialization, or status
+router.put('/staff/:assistantId', (req, res) => {
+  const { assistantId } = req.params;
+  const {
+    first_name,
+    last_name,
+    contact_number,
+    id_number,
+    specialization,
+    room_number,
+    is_on_duty,
+    is_active
+  } = req.body;
+
+  const db = getDb();
+  const assistant = db.prepare('SELECT * FROM assistants WHERE assistant_id = ?').get(assistantId);
+  if (!assistant) {
+    return res.status(404).json({ success: false, message: 'Medical officer not found.' });
+  }
+
+  // Update assistant station fields
+  db.prepare(`
+    UPDATE assistants
+    SET 
+      specialization = COALESCE(?, specialization),
+      room_number = COALESCE(?, room_number),
+      is_on_duty = COALESCE(?, is_on_duty),
+      is_active = COALESCE(?, is_active)
+    WHERE assistant_id = ?
+  `).run(
+    specialization !== undefined ? specialization.trim() : null,
+    room_number !== undefined ? room_number.trim() : null,
+    is_on_duty !== undefined ? (is_on_duty ? 1 : 0) : null,
+    is_active !== undefined ? (is_active ? 1 : 0) : null,
+    assistantId
+  );
+
+  // Update user profile fields if provided
+  if (first_name || last_name || contact_number || id_number) {
+    db.prepare(`
+      UPDATE users
+      SET
+        first_name = COALESCE(?, first_name),
+        last_name = COALESCE(?, last_name),
+        contact_number = COALESCE(?, contact_number),
+        id_number = COALESCE(?, id_number)
+      WHERE id = ?
+    `).run(
+      first_name ? first_name.trim() : null,
+      last_name ? last_name.trim() : null,
+      contact_number ? contact_number.trim() : null,
+      id_number ? id_number.trim().toUpperCase() : null,
+      assistant.user_id
+    );
+  }
+
+  return res.json({
+    success: true,
+    message: 'Staff station and profile successfully updated.'
+  });
+});
+
+// POST /api/admin/staff/:assistantId/reset-password - Reset staff password
+router.post('/staff/:assistantId/reset-password', async (req, res) => {
+  const { assistantId } = req.params;
+  const { new_password } = req.body;
+  const db = getDb();
+
+  const assistant = db.prepare('SELECT user_id FROM assistants WHERE assistant_id = ?').get(assistantId);
+  if (!assistant) {
+    return res.status(404).json({ success: false, message: 'Medical officer not found.' });
+  }
+
+  const plainPassword = new_password || 'earist2026!';
+  const passwordHash = await bcrypt.hash(plainPassword, 10);
+
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, assistant.user_id);
+
+  return res.json({
+    success: true,
+    message: `Password has been reset to: ${plainPassword}`
+  });
 });
 
 module.exports = router;

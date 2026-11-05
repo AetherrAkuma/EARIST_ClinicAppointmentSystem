@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
 import { FullAvailabilityCalendar } from '../components/doctor/FullAvailabilityCalendar';
+import { WalkInModal } from '../components/doctor/WalkInModal';
+import { PatientHistoryModal } from '../components/doctor/PatientHistoryModal';
 import {
   Stethoscope,
   Clock,
@@ -22,7 +24,11 @@ import {
   FileText,
   Search,
   Filter,
-  FileSpreadsheet
+  FileSpreadsheet,
+  UserPlus,
+  History,
+  Thermometer,
+  HeartPulse
 } from 'lucide-react';
 
 export const DoctorDashboard = () => {
@@ -48,6 +54,18 @@ export const DoctorDashboard = () => {
   const [prescription, setPrescription] = useState('');
   const [dosageInstructions, setDosageInstructions] = useState('');
   const [updating, setUpdating] = useState(false);
+
+  // Vitals State in Consultation
+  const [bpSystolic, setBpSystolic] = useState('');
+  const [bpDiastolic, setBpDiastolic] = useState('');
+  const [temperature, setTemperature] = useState('');
+  const [pulseRate, setPulseRate] = useState('');
+  const [spo2, setSpo2] = useState('');
+  const [weightKg, setWeightKg] = useState('');
+
+  // Walk-In and History Modals
+  const [showWalkInModal, setShowWalkInModal] = useState(false);
+  const [historyPatient, setHistoryPatient] = useState(null);
 
   const fetchDoctorData = async () => {
     if (inFlightRef.current) return;
@@ -159,6 +177,12 @@ export const DoctorDashboard = () => {
     setDiagnosis(appt.diagnosis || '');
     setPrescription(appt.prescription || '');
     setDosageInstructions(appt.dosage_instructions || '');
+    setBpSystolic(appt.bp_systolic !== null && appt.bp_systolic !== undefined ? appt.bp_systolic : '');
+    setBpDiastolic(appt.bp_diastolic !== null && appt.bp_diastolic !== undefined ? appt.bp_diastolic : '');
+    setTemperature(appt.temperature !== null && appt.temperature !== undefined ? appt.temperature : '');
+    setPulseRate(appt.pulse_rate !== null && appt.pulse_rate !== undefined ? appt.pulse_rate : '');
+    setSpo2(appt.spo2 !== null && appt.spo2 !== undefined ? appt.spo2 : '');
+    setWeightKg(appt.weight_kg !== null && appt.weight_kg !== undefined ? appt.weight_kg : '');
   };
 
   const handleCompleteConsultation = async (e) => {
@@ -177,7 +201,13 @@ export const DoctorDashboard = () => {
           status: 'Completed',
           diagnosis: diagnosis.trim() || 'Clinically evaluated. Fit for campus activities.',
           prescription: prescription.trim() || 'None prescribed.',
-          dosage_instructions: dosageInstructions.trim() || 'Follow general healthy habits.'
+          dosage_instructions: dosageInstructions.trim() || 'Follow general healthy habits.',
+          bp_systolic: bpSystolic !== '' ? parseInt(bpSystolic, 10) : null,
+          bp_diastolic: bpDiastolic !== '' ? parseInt(bpDiastolic, 10) : null,
+          temperature: temperature !== '' ? parseFloat(temperature) : null,
+          pulse_rate: pulseRate !== '' ? parseInt(pulseRate, 10) : null,
+          spo2: spo2 !== '' ? parseInt(spo2, 10) : null,
+          weight_kg: weightKg !== '' ? parseFloat(weightKg) : null
         })
       });
 
@@ -320,6 +350,15 @@ export const DoctorDashboard = () => {
 
         {/* Duty Status Quick Toggle & Actions */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowWalkInModal(true)}
+            className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold bg-white text-earist-dark hover:bg-slate-100 transition-all shadow-xs cursor-pointer"
+            title="Log Walk-In Patient Arrival (Immediate Triage)"
+          >
+            <UserPlus className="w-4 h-4 text-earist-crimson" />
+            <span>+ Walk-In Patient</span>
+          </button>
           <button
             onClick={handleDutyButtonClick}
             disabled={togglingDuty}
@@ -525,6 +564,11 @@ export const DoctorDashboard = () => {
                               <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider bg-emerald-100/60 px-2 py-0.5 rounded">
                                 Today
                               </span>
+                              {appt.is_walkin === 1 && (
+                                <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider bg-amber-100 px-2 py-0.5 rounded border border-amber-200">
+                                  Walk-In
+                                </span>
+                              )}
                             </div>
                             <span className="text-xs font-mono font-bold text-earist-dark bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
                               {appt.reference_code}
@@ -608,6 +652,15 @@ export const DoctorDashboard = () => {
                                 <span>Start Consultation</span>
                               </button>
                               <button
+                                type="button"
+                                onClick={() => setHistoryPatient({ idNumber: appt.id_number, patientName: appt.patient_name })}
+                                className="px-3 py-3 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer flex items-center gap-1"
+                                title="View Patient Clinic History"
+                              >
+                                <History className="w-3.5 h-3.5 text-slate-500" />
+                                <span className="hidden sm:inline">History</span>
+                              </button>
+                              <button
                                 onClick={() => setViewDetailsAppt(appt)}
                                 className="px-4 py-3 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
                               >
@@ -617,13 +670,24 @@ export const DoctorDashboard = () => {
                           )}
 
                           {appt.status === 'OnGoing' && (
-                            <button
-                              onClick={() => openConsultation(appt)}
-                              className="flex-1 py-3 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2"
-                            >
-                              <Pill className="w-4 h-4" />
-                              <span>Prescribe & Record Management</span>
-                            </button>
+                            <>
+                              <button
+                                onClick={() => openConsultation(appt)}
+                                className="flex-1 py-3 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2"
+                              >
+                                <Pill className="w-4 h-4" />
+                                <span>Prescribe & Record Management</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setHistoryPatient({ idNumber: appt.id_number, patientName: appt.patient_name })}
+                                className="px-3 py-3 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer flex items-center gap-1"
+                                title="View Patient Clinic History"
+                              >
+                                <History className="w-3.5 h-3.5 text-slate-500" />
+                                <span className="hidden sm:inline">History</span>
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -960,6 +1024,102 @@ export const DoctorDashboard = () => {
               )}
             </div>
 
+            {/* Structured Vital Signs Grid */}
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <Activity className="w-4 h-4 text-earist-crimson" />
+                  Clinical Vital Signs (Triage Record)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setHistoryPatient({ idNumber: consultationAppt.id_number, patientName: consultationAppt.patient_name })}
+                  className="text-xs font-bold text-earist-crimson hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <History className="w-3.5 h-3.5" />
+                  <span>View Past Visits</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-0.5">BP (Systolic)</label>
+                  <input
+                    type="number"
+                    placeholder="120"
+                    value={bpSystolic}
+                    onChange={(e) => setBpSystolic(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-0.5">BP (Diastolic)</label>
+                  <input
+                    type="number"
+                    placeholder="80"
+                    value={bpDiastolic}
+                    onChange={(e) => setBpDiastolic(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-0.5">Temp (°C)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    placeholder="36.8"
+                    value={temperature}
+                    onChange={(e) => setTemperature(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-0.5">Heart Rate</label>
+                  <input
+                    type="number"
+                    placeholder="75"
+                    value={pulseRate}
+                    onChange={(e) => setPulseRate(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-0.5">SpO₂ (%)</label>
+                  <input
+                    type="number"
+                    placeholder="98"
+                    value={spo2}
+                    onChange={(e) => setSpo2(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
+                  />
+                </div>
+              </div>
+
+              {/* Vitals Clinical Alerts */}
+              {(parseFloat(temperature) >= 37.8 || (parseInt(bpSystolic, 10) >= 140 || parseInt(bpDiastolic, 10) >= 90) || parseInt(spo2, 10) < 95) && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {parseFloat(temperature) >= 37.8 && (
+                    <span className="px-2 py-0.5 rounded bg-red-100 text-red-900 border border-red-200 text-xs font-bold flex items-center gap-1">
+                      <Thermometer className="w-3.5 h-3.5 text-red-700" />
+                      Fever Alert ({temperature}°C)
+                    </span>
+                  )}
+                  {(parseInt(bpSystolic, 10) >= 140 || parseInt(bpDiastolic, 10) >= 90) && (
+                    <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold flex items-center gap-1">
+                      <HeartPulse className="w-3.5 h-3.5 text-amber-700" />
+                      Elevated Blood Pressure ({bpSystolic}/{bpDiastolic})
+                    </span>
+                  )}
+                  {parseInt(spo2, 10) < 95 && (
+                    <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-900 border border-purple-200 text-xs font-bold flex items-center gap-1">
+                      <Activity className="w-3.5 h-3.5 text-purple-700" />
+                      Hypoxemia Warning ({spo2}%)
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Clinical Management & Interventions (Daily Logsheet Management) *
@@ -1073,6 +1233,31 @@ export const DoctorDashboard = () => {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Acute Walk-In Intake Modal */}
+      {showWalkInModal && (
+        <WalkInModal
+          isOpen={showWalkInModal}
+          onClose={() => setShowWalkInModal(false)}
+          currentDoctorId={user?.assistant_id || user?.profile?.assistant_id || 1}
+          onSuccess={(createdAppt, serveImmediately) => {
+            fetchDoctorData();
+            if (serveImmediately) {
+              openConsultation(createdAppt);
+            }
+          }}
+        />
+      )}
+
+      {/* Patient Past Visit History Modal */}
+      {historyPatient && (
+        <PatientHistoryModal
+          isOpen={!!historyPatient}
+          onClose={() => setHistoryPatient(null)}
+          idNumber={historyPatient.idNumber}
+          patientName={historyPatient.patientName}
+        />
       )}
     </div>
   );

@@ -308,10 +308,162 @@ router.get('/queue', authenticateToken, requireRole(['assistant', 'admin']), (re
   return res.json({ success: true, queue });
 });
 
-// PATCH /api/appointments/:id/status - Update consultation status & issue Rx
+// POST /api/appointments/walk-in - Acute walk-in patient triage & intake
+router.post('/walk-in', authenticateToken, requireRole(['assistant', 'admin']), (req, res) => {
+  const {
+    patient_type,
+    patient_name,
+    id_number,
+    department,
+    course,
+    year_section,
+    age,
+    gender,
+    contact_number,
+    email,
+    symptoms,
+    symptom_severity,
+    allergies,
+    reason,
+    assistant_id,
+    serve_immediately,
+    bp_systolic,
+    bp_diastolic,
+    temperature,
+    pulse_rate,
+    respiratory_rate,
+    spo2,
+    weight_kg
+  } = req.body;
+
+  if (!patient_name || !id_number || !department) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide patient name, ID number, and department.'
+    });
+  }
+
+  const db = getDb();
+
+  let targetAssistantId = assistant_id;
+  if (!targetAssistantId && req.user.role === 'assistant') {
+    targetAssistantId = req.user.assistant_id;
+  }
+  if (!targetAssistantId) {
+    const firstDoc = db.prepare('SELECT assistant_id FROM assistants WHERE is_active = 1 LIMIT 1').get();
+    targetAssistantId = firstDoc ? firstDoc.assistant_id : 1;
+  }
+
+  const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const referenceCode = `EAR-WLK-${randomChars}`;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+  const currentTimeSlot = `${hours}:${minutes} - Walk-In Triage`;
+
+  const initialStatus = serve_immediately ? 'OnGoing' : 'Approved';
+
+  const validTypes = ['student', 'academic_non_academic', 'faculty_staff', 'outsource_extension'];
+  const normalizedPatientType = validTypes.includes(patient_type) ? patient_type : 'student';
+
+  const insertStmt = db.prepare(`
+    INSERT INTO appointments (
+      reference_code, patient_type, patient_name, id_number, department, course, year_section,
+      age, gender, contact_number, email, symptoms, symptom_severity, allergies, reason,
+      assistant_id, appointment_date, time_slot, service_type, status,
+      bp_systolic, bp_diastolic, temperature, pulse_rate, respiratory_rate, spo2, weight_kg, is_walkin
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Walk-In Medical Triage', ?, ?, ?, ?, ?, ?, ?, ?, 1)
+  `);
+
+  const result = insertStmt.run(
+    referenceCode,
+    normalizedPatientType,
+    patient_name.trim(),
+    id_number.trim().toUpperCase(),
+    department.trim(),
+    course ? course.trim() : null,
+    year_section ? year_section.trim() : null,
+    age ? parseInt(age, 10) : null,
+    gender || 'Other',
+    contact_number ? contact_number.trim() : 'N/A',
+    email ? email.trim().toLowerCase() : null,
+    symptoms ? symptoms.trim() : 'Acute Walk-In Evaluation',
+    symptom_severity || 'Moderate',
+    allergies ? allergies.trim() : 'None',
+    reason ? reason.trim() : 'Immediate Clinic Visit',
+    parseInt(targetAssistantId, 10),
+    today,
+    currentTimeSlot,
+    initialStatus,
+    bp_systolic !== undefined && bp_systolic !== '' ? parseInt(bp_systolic, 10) : null,
+    bp_diastolic !== undefined && bp_diastolic !== '' ? parseInt(bp_diastolic, 10) : null,
+    temperature !== undefined && temperature !== '' ? parseFloat(temperature) : null,
+    pulse_rate !== undefined && pulse_rate !== '' ? parseInt(pulse_rate, 10) : null,
+    respiratory_rate !== undefined && respiratory_rate !== '' ? parseInt(respiratory_rate, 10) : null,
+    spo2 !== undefined && spo2 !== '' ? parseInt(spo2, 10) : null,
+    weight_kg !== undefined && weight_kg !== '' ? parseFloat(weight_kg) : null
+  );
+
+  return res.status(201).json({
+    success: true,
+    message: serve_immediately ? 'Walk-in patient admitted immediately to consultation.' : 'Walk-in patient added to today queue.',
+    appointment_id: result.lastInsertRowid,
+    reference_code: referenceCode,
+    status: initialStatus
+  });
+});
+
+// GET /api/appointments/patient-history/:idNumber - Fetch full clinic history for a student or staff member
+router.get('/patient-history/:idNumber', authenticateToken, requireRole(['assistant', 'admin']), (req, res) => {
+  const { idNumber } = req.params;
+  const db = getDb();
+  const qId = (idNumber || '').trim().toUpperCase();
+
+  if (!qId) {
+    return res.status(400).json({ success: false, message: 'Valid ID Number is required.' });
+  }
+
+  const history = db.prepare(`
+    SELECT 
+      ap.*,
+      u.first_name AS doctor_first_name,
+      u.last_name AS doctor_last_name,
+      ast.specialization,
+      ast.room_number
+    FROM appointments ap
+    LEFT JOIN assistants ast ON ap.assistant_id = ast.assistant_id
+    LEFT JOIN users u ON ast.user_id = u.id
+    WHERE UPPER(TRIM(ap.id_number)) = ?
+    ORDER BY ap.appointment_date DESC, ap.created_at DESC
+  `).all(qId);
+
+  return res.json({
+    success: true,
+    id_number: qId,
+    total_visits: history.length,
+    history
+  });
+});
+
+// PATCH /api/appointments/:id/status - Update consultation status, vitals & issue Rx
 router.patch('/:id/status', authenticateToken, requireRole(['assistant', 'admin']), (req, res) => {
   const { id } = req.params;
-  const { status, diagnosis, prescription, dosage_instructions } = req.body;
+  const {
+    status,
+    diagnosis,
+    prescription,
+    dosage_instructions,
+    bp_systolic,
+    bp_diastolic,
+    temperature,
+    pulse_rate,
+    respiratory_rate,
+    spo2,
+    weight_kg
+  } = req.body;
   const db = getDb();
 
   const appointment = db.prepare('SELECT * FROM appointments WHERE appointment_id = ?').get(id);
@@ -325,13 +477,27 @@ router.patch('/:id/status', authenticateToken, requireRole(['assistant', 'admin'
       status = COALESCE(?, status),
       diagnosis = COALESCE(?, diagnosis),
       prescription = COALESCE(?, prescription),
-      dosage_instructions = COALESCE(?, dosage_instructions)
+      dosage_instructions = COALESCE(?, dosage_instructions),
+      bp_systolic = COALESCE(?, bp_systolic),
+      bp_diastolic = COALESCE(?, bp_diastolic),
+      temperature = COALESCE(?, temperature),
+      pulse_rate = COALESCE(?, pulse_rate),
+      respiratory_rate = COALESCE(?, respiratory_rate),
+      spo2 = COALESCE(?, spo2),
+      weight_kg = COALESCE(?, weight_kg)
     WHERE appointment_id = ?
   `).run(
     status || null,
     diagnosis !== undefined ? diagnosis : null,
     prescription !== undefined ? prescription : null,
     dosage_instructions !== undefined ? dosage_instructions : null,
+    bp_systolic !== undefined && bp_systolic !== '' ? parseInt(bp_systolic, 10) : null,
+    bp_diastolic !== undefined && bp_diastolic !== '' ? parseInt(bp_diastolic, 10) : null,
+    temperature !== undefined && temperature !== '' ? parseFloat(temperature) : null,
+    pulse_rate !== undefined && pulse_rate !== '' ? parseInt(pulse_rate, 10) : null,
+    respiratory_rate !== undefined && respiratory_rate !== '' ? parseInt(respiratory_rate, 10) : null,
+    spo2 !== undefined && spo2 !== '' ? parseInt(spo2, 10) : null,
+    weight_kg !== undefined && weight_kg !== '' ? parseFloat(weight_kg) : null,
     id
   );
 

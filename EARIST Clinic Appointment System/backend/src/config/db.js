@@ -8,6 +8,9 @@ function getDb() {
   if (!db) {
     db = new DatabaseSync(dbPath);
     db.exec('PRAGMA foreign_keys = ON;');
+    db.exec('PRAGMA busy_timeout = 5000;');
+    db.exec('PRAGMA journal_mode = WAL;');
+    db.exec('PRAGMA synchronous = NORMAL;');
     initSchema(db);
   }
   return db;
@@ -144,8 +147,27 @@ function initSchema(database) {
     if (!hasEmail) {
       database.exec("ALTER TABLE appointments ADD COLUMN email TEXT;");
     }
+
+    // Vitals and Walk-In columns migration
+    const colNames = cols.map(c => c.name);
+    const vitalsColumns = [
+      { name: 'bp_systolic', type: 'INTEGER' },
+      { name: 'bp_diastolic', type: 'INTEGER' },
+      { name: 'temperature', type: 'REAL' },
+      { name: 'pulse_rate', type: 'INTEGER' },
+      { name: 'respiratory_rate', type: 'INTEGER' },
+      { name: 'spo2', type: 'INTEGER' },
+      { name: 'weight_kg', type: 'REAL' },
+      { name: 'is_walkin', type: 'INTEGER DEFAULT 0' }
+    ];
+
+    for (const col of vitalsColumns) {
+      if (!colNames.includes(col.name)) {
+        database.exec(`ALTER TABLE appointments ADD COLUMN ${col.name} ${col.type};`);
+      }
+    }
   } catch (e) {
-    console.error('Error adding email column:', e);
+    console.error('Error adding vitals columns:', e);
   }
 }
 
