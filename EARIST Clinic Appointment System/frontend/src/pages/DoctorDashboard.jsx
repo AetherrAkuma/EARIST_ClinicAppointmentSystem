@@ -597,186 +597,232 @@ export const DoctorDashboard = () => {
                     return (
                       <div
                         key={appt.appointment_id}
-                        className={`bg-white rounded-2xl border p-6 flex flex-col justify-between shadow-xs transition-all ${
+                        className={`bg-white rounded-2xl border flex flex-col justify-between shadow-xs hover:shadow-md transition-all duration-200 overflow-hidden ${
                           isOngoing
-                            ? 'border-blue-400 ring-2 ring-blue-100 bg-blue-50/15'
+                            ? 'border-blue-400 ring-2 ring-blue-100/80 bg-gradient-to-b from-blue-50/20 to-white'
                             : isCheckedIn
-                            ? 'border-teal-400 ring-2 ring-teal-100 bg-teal-50/15'
+                            ? 'border-teal-400 ring-2 ring-teal-100/80 bg-gradient-to-b from-teal-50/20 to-white'
                             : isSevere
                             ? 'border-rose-300 ring-2 ring-rose-50'
                             : 'border-slate-200 hover:border-slate-300'
                         }`}
                       >
-                        <div className="space-y-4">
-                          {/* Header: Time Slot Pill & Reference Code */}
-                          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                                <Clock className="w-3.5 h-3.5 text-emerald-600" />
-                                {appt.time_slot}
+                        <div className="p-5 sm:p-6 space-y-4">
+                          {/* Header: Time Slot & Non-wrapping Reference Code */}
+                          <div className="space-y-2 pb-3.5 border-b border-slate-100">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-black bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-xs">
+                                <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <span>{appt.time_slot}</span>
                               </span>
-                              {isCheckedIn ? (
-                                <span className="text-[11px] font-bold text-teal-800 uppercase tracking-wider bg-teal-100 px-2 py-0.5 rounded border border-teal-200 flex items-center gap-1">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-teal-600 animate-pulse" />
-                                  In Waiting Room
+                              <span className="text-xs font-mono font-bold text-earist-dark bg-slate-100/80 px-2.5 py-1 rounded-lg border border-slate-200 whitespace-nowrap tracking-wide select-all">
+                                {appt.reference_code}
+                              </span>
+                            </div>
+
+                            {/* Status & Walk-In Indicators */}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {isOngoing ? (
+                                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-blue-900 bg-blue-100/80 px-2.5 py-0.5 rounded-full border border-blue-200">
+                                  <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                                  In Consultation
+                                </span>
+                              ) : isCheckedIn ? (
+                                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-teal-900 bg-teal-100/80 px-2.5 py-0.5 rounded-full border border-teal-200">
+                                  <span className="w-2 h-2 rounded-full bg-teal-600 animate-pulse" />
+                                  In Waiting Room (Arrived)
                                 </span>
                               ) : (
-                                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                                   Awaiting Arrival
                                 </span>
                               )}
+
                               {appt.is_walkin === 1 && (
-                                <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider bg-amber-100 px-2 py-0.5 rounded border border-amber-200">
-                                  Walk-In
+                                <span className="text-[11px] font-bold text-amber-900 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300">
+                                  ⚡ Walk-In
                                 </span>
                               )}
                             </div>
-                            <span className="text-xs font-mono font-bold text-earist-dark bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
-                              {appt.reference_code}
-                            </span>
                           </div>
 
                           {/* Patient Identity */}
                           <div>
-                            <div className="flex items-center gap-2">
-                              {isStudent ? (
-                                <GraduationCap className="w-5 h-5 text-earist-crimson shrink-0" />
-                              ) : isOutsource ? (
-                                <Building2 className="w-5 h-5 text-slate-700 shrink-0" />
-                              ) : (
-                                <Briefcase className="w-5 h-5 text-amber-700 shrink-0" />
-                              )}
-                              <h4 className="font-extrabold text-slate-900 text-lg leading-tight">
-                                {appt.patient_name}
-                              </h4>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-slate-600">
-                              <span className={`font-bold px-2 py-0.5 rounded border ${getCategoryBadgeClass(appt.patient_type)}`}>
-                                {getCategoryLabel(appt.patient_type)}
-                              </span>
-                              <span className="font-semibold text-slate-700">
-                                {appt.department} {appt.year_section && `(${appt.year_section})`}
-                              </span>
-                              <span className="font-mono text-slate-400">• ID: {appt.id_number}</span>
+                            <div className="flex items-start gap-2.5">
+                              <div className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0 mt-0.5">
+                                {isStudent ? (
+                                  <GraduationCap className="w-5 h-5 text-earist-crimson" />
+                                ) : isOutsource ? (
+                                  <Building2 className="w-5 h-5 text-slate-700" />
+                                ) : (
+                                  <Briefcase className="w-5 h-5 text-amber-700" />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <h4 className="font-black text-slate-900 text-lg leading-tight truncate">
+                                  {appt.patient_name}
+                                </h4>
+                                <div className="flex flex-wrap items-center gap-1.5 mt-1.5 text-xs text-slate-600">
+                                  <span className={`font-bold px-2 py-0.5 rounded-md border text-[11px] ${getCategoryBadgeClass(appt.patient_type)}`}>
+                                    {getCategoryLabel(appt.patient_type)}
+                                  </span>
+                                  <span className="font-mono text-slate-500 font-semibold text-[11px] bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">
+                                    ID: {appt.id_number}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-600 font-medium mt-1 truncate">
+                                  {appt.department} {appt.year_section && `• Sec: ${appt.year_section}`}
+                                </p>
+                              </div>
                             </div>
                           </div>
 
-                          {/* Clinical Symptoms / Chief Complaint */}
-                          <div className="pt-2 text-sm space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">
-                                Chief Complaint:
+                          {/* Clinical Chief Complaint Box */}
+                          <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-200/90 space-y-1.5 text-xs">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                Chief Complaint
                               </span>
                               {appt.symptom_severity === 'Severe' && (
-                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse" />
                                   Severe
                                 </span>
                               )}
                               {appt.symptom_severity === 'Moderate' && (
-                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
                                   Moderate
                                 </span>
                               )}
+                              {appt.symptom_severity === 'Mild' && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                  Mild
+                                </span>
+                              )}
                             </div>
+
                             <p className="font-bold text-slate-800 text-sm leading-snug">
                               {appt.symptoms || appt.reason || 'General Medical Consultation'}
                             </p>
+
                             {appt.reason && appt.reason !== appt.symptoms && (
-                              <p className="text-xs text-slate-500 italic mt-0.5">
+                              <p className="text-slate-500 italic text-[11px] bg-white/70 p-1.5 rounded border border-slate-200/60">
                                 "{appt.reason}"
                               </p>
                             )}
+
                             {appt.allergies && appt.allergies !== 'None' && (
-                              <p className="text-xs text-rose-700 font-bold pt-1">
-                                ⚠️ Allergies: {appt.allergies}
-                              </p>
+                              <div className="bg-rose-50 text-rose-800 px-2 py-1 rounded border border-rose-200 font-bold text-[11px] flex items-center gap-1.5">
+                                <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                                <span>Allergies: {appt.allergies}</span>
+                              </div>
                             )}
                           </div>
 
-                          {/* Contact phone */}
-                          <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium pt-1">
-                            <Phone className="w-3.5 h-3.5 text-slate-400" />
-                            <span>{appt.contact_number}</span>
-                            {appt.email && <span className="text-slate-400 truncate">• {appt.email}</span>}
+                          {/* Contact Details */}
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 pt-0.5">
+                            <a
+                              href={`tel:${appt.contact_number}`}
+                              className="inline-flex items-center gap-1.5 font-medium hover:text-earist-crimson transition-colors"
+                            >
+                              <Phone className="w-3.5 h-3.5 text-slate-400" />
+                              <span>{appt.contact_number}</span>
+                            </a>
+                            {appt.email && (
+                              <a
+                                href={`mailto:${appt.email}`}
+                                className="inline-flex items-center gap-1 text-slate-500 hover:text-earist-crimson transition-colors truncate max-w-[200px]"
+                                title={appt.email}
+                              >
+                                <span className="text-slate-300">•</span>
+                                <span className="truncate">{appt.email}</span>
+                              </a>
+                            )}
                           </div>
                         </div>
 
-                        {/* Context-Aware Actions for Today */}
-                        <div className="pt-5 mt-5 border-t border-slate-100 flex items-center gap-2">
+                        {/* Structured Context-Aware Actions for Today */}
+                        <div className="p-4 bg-slate-50/50 border-t border-slate-100 space-y-2">
                           {appt.status === 'CheckedIn' && (
                             <>
                               <button
                                 onClick={() => updateStatus(appt.appointment_id, 'OnGoing')}
-                                className="flex-1 py-3 rounded-xl text-xs font-extrabold bg-[#800020] hover:bg-[#68001a] text-white shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                                className="w-full py-2.5 px-4 rounded-xl text-xs font-black bg-[#800020] hover:bg-[#68001a] text-white shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2"
                               >
                                 <Stethoscope className="w-4 h-4" />
-                                <span>Call & Start</span>
+                                <span>Call Patient & Start Consult</span>
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => handleMarkNoShow(appt.appointment_id, appt.reference_code)}
-                                className="px-3 py-3 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors cursor-pointer"
-                                title="Mark as No-Show"
-                              >
-                                No-Show
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setHistoryPatient({ idNumber: appt.id_number, patientName: appt.patient_name })}
-                                className="px-3 py-3 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer flex items-center gap-1"
-                                title="View Patient Clinic History"
-                              >
-                                <History className="w-3.5 h-3.5 text-slate-500" />
-                                <span className="hidden sm:inline">History</span>
-                              </button>
-                              <button
-                                onClick={() => setViewDetailsAppt(appt)}
-                                className="px-3 py-3 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
-                              >
-                                Details
-                              </button>
+
+                              <div className="grid grid-cols-3 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMarkNoShow(appt.appointment_id, appt.reference_code)}
+                                  className="py-1.5 px-2 rounded-lg text-[11px] font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors cursor-pointer flex items-center justify-center gap-1"
+                                >
+                                  <span>No-Show</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setHistoryPatient({ idNumber: appt.id_number, patientName: appt.patient_name })}
+                                  className="py-1.5 px-2 rounded-lg text-[11px] font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors cursor-pointer flex items-center justify-center gap-1"
+                                >
+                                  <History className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>History</span>
+                                </button>
+                                <button
+                                  onClick={() => setViewDetailsAppt(appt)}
+                                  className="py-1.5 px-2 rounded-lg text-[11px] font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors cursor-pointer flex items-center justify-center gap-1"
+                                >
+                                  <span>Details</span>
+                                </button>
+                              </div>
                             </>
                           )}
 
                           {appt.status === 'Approved' && (
                             <>
-                              <button
-                                onClick={() => handleMarkArrived(appt.reference_code)}
-                                className="flex-1 py-3 rounded-xl text-xs font-extrabold bg-teal-700 hover:bg-teal-800 text-white shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                              >
-                                <CheckCircle2 className="w-4 h-4" />
-                                <span>Mark Arrived</span>
-                              </button>
-                              <button
-                                onClick={() => updateStatus(appt.appointment_id, 'OnGoing')}
-                                className="py-3 px-3 rounded-xl text-xs font-extrabold bg-[#800020] hover:bg-[#68001a] text-white shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1"
-                                title="Start Consultation directly"
-                              >
-                                <Stethoscope className="w-4 h-4" />
-                                <span>Consult</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleMarkNoShow(appt.appointment_id, appt.reference_code)}
-                                className="px-2.5 py-3 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors cursor-pointer"
-                                title="Mark as No-Show"
-                              >
-                                No-Show
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setHistoryPatient({ idNumber: appt.id_number, patientName: appt.patient_name })}
-                                className="px-2.5 py-3 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer flex items-center gap-1"
-                                title="View Patient Clinic History"
-                              >
-                                <History className="w-3.5 h-3.5 text-slate-500" />
-                              </button>
-                              <button
-                                onClick={() => setViewDetailsAppt(appt)}
-                                className="px-3 py-3 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
-                              >
-                                Details
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleMarkArrived(appt.reference_code)}
+                                  className="flex-1 py-2.5 px-3 rounded-xl text-xs font-black bg-teal-700 hover:bg-teal-800 text-white shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                                >
+                                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                                  <span className="whitespace-nowrap">Mark Arrived</span>
+                                </button>
+                                <button
+                                  onClick={() => updateStatus(appt.appointment_id, 'OnGoing')}
+                                  className="py-2.5 px-3.5 rounded-xl text-xs font-black bg-[#800020] hover:bg-[#68001a] text-white shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                                  title="Start Consultation directly"
+                                >
+                                  <Stethoscope className="w-4 h-4 shrink-0" />
+                                  <span className="whitespace-nowrap">Consult</span>
+                                </button>
+                              </div>
+
+                              <div className="grid grid-cols-3 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMarkNoShow(appt.appointment_id, appt.reference_code)}
+                                  className="py-1.5 px-2 rounded-lg text-[11px] font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors cursor-pointer flex items-center justify-center gap-1"
+                                >
+                                  <span>No-Show</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setHistoryPatient({ idNumber: appt.id_number, patientName: appt.patient_name })}
+                                  className="py-1.5 px-2 rounded-lg text-[11px] font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors cursor-pointer flex items-center justify-center gap-1"
+                                >
+                                  <History className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>History</span>
+                                </button>
+                                <button
+                                  onClick={() => setViewDetailsAppt(appt)}
+                                  className="py-1.5 px-2 rounded-lg text-[11px] font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors cursor-pointer flex items-center justify-center gap-1"
+                                >
+                                  <span>Details</span>
+                                </button>
+                              </div>
                             </>
                           )}
 
@@ -784,20 +830,28 @@ export const DoctorDashboard = () => {
                             <>
                               <button
                                 onClick={() => openConsultation(appt)}
-                                className="flex-1 py-3 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2"
+                                className="w-full py-2.5 px-4 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2"
                               >
-                                <Pill className="w-4 h-4" />
+                                <Pill className="w-4 h-4 shrink-0" />
                                 <span>Prescribe & Record Management</span>
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => setHistoryPatient({ idNumber: appt.id_number, patientName: appt.patient_name })}
-                                className="px-3 py-3 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer flex items-center gap-1"
-                                title="View Patient Clinic History"
-                              >
-                                <History className="w-3.5 h-3.5 text-slate-500" />
-                                <span className="hidden sm:inline">History</span>
-                              </button>
+
+                              <div className="grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setHistoryPatient({ idNumber: appt.id_number, patientName: appt.patient_name })}
+                                  className="py-1.5 px-3 rounded-lg text-[11px] font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                                >
+                                  <History className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>Patient History</span>
+                                </button>
+                                <button
+                                  onClick={() => setViewDetailsAppt(appt)}
+                                  className="py-1.5 px-3 rounded-lg text-[11px] font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                                >
+                                  <span>Encounter Details</span>
+                                </button>
+                              </div>
                             </>
                           )}
                         </div>
@@ -838,7 +892,7 @@ export const DoctorDashboard = () => {
                               <Calendar className="w-3.5 h-3.5 text-blue-600" />
                               {formatDisplayDate(appt.appointment_date)} • {appt.time_slot ? appt.time_slot.split(' - ')[0] : ''}
                             </span>
-                            <span className="text-xs font-mono font-bold text-earist-dark bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
+                            <span className="text-xs font-mono font-bold text-earist-dark bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200 whitespace-nowrap select-all">
                               {appt.reference_code}
                             </span>
                           </div>
