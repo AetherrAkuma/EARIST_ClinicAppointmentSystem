@@ -106,6 +106,9 @@ async function sendAppointmentConfirmationEmail(details) {
   const fromAddress = process.env.SMTP_FROM || process.env.BREVO_SENDER_EMAIL || '"EARIST e-Clinic" <no-reply@uplift.ragetech.dev>';
   const subject = `EARIST Clinic Appointment Confirmation — Ticket #${reference_code}`;
 
+  const cleanDoctor = (doctor_name || 'Assigned Officer').replace(/^Dr\.?\s+/i, '').trim();
+  const doctorDisplay = cleanDoctor.toLowerCase() === 'assigned officer' ? 'Assigned Officer' : `Dr. ${cleanDoctor}`;
+
   const htmlContent = `
     <!DOCTYPE html>
     <html>
@@ -186,7 +189,7 @@ async function sendAppointmentConfirmationEmail(details) {
             </tr>
             <tr>
               <td class="details-label">Attending Medical Officer:</td>
-              <td class="details-value">Dr. ${doctor_name || 'Assigned Officer'} (${room_number || 'Main Clinic Rm 101'})</td>
+              <td class="details-value">${doctorDisplay} (${room_number || 'Main Clinic Rm 101'})</td>
             </tr>
             <tr>
               <td class="details-label">Reported Complaints:</td>
@@ -240,7 +243,7 @@ async function sendAppointmentConfirmationEmail(details) {
     console.log(`Subject: ${subject}`);
     console.log(`Patient: ${patient_name} (${id_number})`);
     console.log(`Tracking Reference Code: ${reference_code}`);
-    console.log(`Appointment: ${appointment_date} at ${time_slot} with Dr. ${doctor_name || 'Staff'}`);
+    console.log(`Appointment: ${appointment_date} at ${time_slot} with ${doctorDisplay}`);
     console.log(`========================================================================`);
     return { success: true, mode: 'logged' };
   }
@@ -258,6 +261,9 @@ async function sendOtpVerificationEmail(email, otpCode) {
 
   const subject = `Your EARIST Clinic Verification Code: ${otpCode}`;
   const fromAddress = process.env.SMTP_FROM || process.env.BREVO_SENDER_EMAIL || '"EARIST e-Clinic" <no-reply@uplift.ragetech.dev>';
+
+  const cleanDoctor = (doctor_name || 'Assigned Officer').replace(/^Dr\.?\s+/i, '').trim();
+  const doctorDisplay = cleanDoctor.toLowerCase() === 'assigned officer' ? 'Assigned Officer' : `Dr. ${cleanDoctor}`;
 
   const htmlContent = `
 <!DOCTYPE html>

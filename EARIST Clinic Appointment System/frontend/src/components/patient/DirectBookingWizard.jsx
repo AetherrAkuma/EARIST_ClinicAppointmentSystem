@@ -4,6 +4,7 @@ import { Modal } from '../common/Modal';
 import { TicketQRCode } from '../common/TicketQRCode';
 import { TurnstileWidget } from '../common/TurnstileWidget';
 import { downloadICSFile, getGoogleCalendarUrl } from '../../utils/calendar';
+import { formatDoctorName } from '../../utils/formatters';
 import {
   Calendar,
   Clock,
@@ -12,6 +13,7 @@ import {
   Stethoscope,
   ShieldCheck,
   CheckCircle2,
+  Check,
   AlertCircle,
   ChevronRight,
   ChevronLeft,
@@ -112,6 +114,7 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [confirmedTicket, setConfirmedTicket] = useState(null);
+  const [codeCopied, setCodeCopied] = useState(false);
   const [availableSlots, setAvailableSlots] = useState([]);
   const [slotDetails, setSlotDetails] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -600,8 +603,13 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
 
   const handleCopyCode = () => {
     if (confirmedTicket) {
-      navigator.clipboard.writeText(confirmedTicket.reference_code);
-      alert('Reference Code copied to clipboard: ' + confirmedTicket.reference_code);
+      try {
+        navigator.clipboard.writeText(confirmedTicket.reference_code);
+        setCodeCopied(true);
+        setTimeout(() => setCodeCopied(false), 2500);
+      } catch (e) {
+        console.error('Clipboard error:', e);
+      }
     }
   };
 
@@ -629,89 +637,166 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
     >
       {confirmedTicket ? (
         /* Confirmed Ticket Screen */
-        <div className="space-y-6 text-center py-2">
-          <div className="w-16 h-16 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center mx-auto border border-emerald-200">
-            <CheckCircle2 className="w-9 h-9" />
-          </div>
-
-          <div>
-            <span className="px-3.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300">
+        <div className="space-y-5 text-center py-1">
+          {/* Top Status Header */}
+          <div className="flex flex-col items-center">
+            <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center border border-emerald-200/80 shadow-xs mb-2.5">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
               OFFICIAL CLINIC TICKET PASS
             </span>
-            <h3 className="text-2xl font-extrabold text-slate-900 mt-2.5">
+            <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-2">
               Appointment Successfully Reserved!
             </h3>
-            <p className="text-sm text-slate-600 mt-1">
-              Please present this unique Reference Code at the clinic triage desk upon arrival.
+            <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto mt-1">
+              Please present this verified pass or reference code at the clinic triage reception upon arrival.
             </p>
           </div>
 
-          {/* Reference Pass Card */}
-          <div className="border border-slate-300 rounded-2xl p-6 sm:p-7 bg-slate-50 text-left space-y-4 relative">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+          {/* Premium Boarding Pass Card */}
+          <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm text-left transition-all">
+            {/* Ticket Header Ribbon */}
+            <div className="bg-gradient-to-r from-earist-dark via-earist-crimson to-earist-dark text-white px-5 sm:px-6 py-3 flex items-center justify-between border-b border-earist-dark">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center border border-white/20">
+                  <HeartPulse className="w-4 h-4 text-amber-300" />
+                </div>
+                <div>
+                  <div className="text-[11px] font-black tracking-widest uppercase text-amber-200">
+                    EARIST Health Services Clinic
+                  </div>
+                  <div className="text-[10px] text-white/80 font-medium">
+                    Manila Main Campus • Nagtahan, Sampaloc
+                  </div>
+                </div>
+              </div>
+              <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase bg-white/15 border border-white/20 text-white">
+                Verified Priority Pass
+              </span>
+            </div>
+
+            {/* Reference Code & One-Click Copy */}
+            <div className="bg-slate-50/90 border-b border-slate-200 px-5 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block">
-                  Reference Code
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">
+                  Booking Reference Code
                 </span>
-                <span className="text-2xl sm:text-3xl font-mono font-extrabold text-earist-dark tracking-wide">
+                <span className="text-2xl sm:text-3xl font-mono font-black text-earist-dark tracking-wider select-all">
                   {confirmedTicket.reference_code}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={handleCopyCode}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-100 transition-colors shadow-xs"
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs ${
+                  codeCopied
+                    ? 'bg-emerald-600 text-white border border-emerald-600'
+                    : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100'
+                }`}
               >
-                <Copy className="w-4 h-4 text-slate-500" />
-                Copy Code
+                {codeCopied ? (
+                  <>
+                    <Check className="w-4 h-4 text-white" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4 text-slate-500" />
+                    Copy Code
+                  </>
+                )}
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm items-center">
-              <div className="sm:col-span-2 grid grid-cols-2 gap-4">
+            {/* Details Grid & Fast QR Stub */}
+            <div className="p-5 sm:p-6 grid grid-cols-1 sm:grid-cols-3 gap-5 items-center">
+              <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-y-3.5 gap-x-5 text-sm">
                 <div>
-                  <span className="text-slate-400 block text-xs font-semibold uppercase">Patient Name:</span>
-                  <span className="font-bold text-slate-900">{confirmedTicket.patient_name}</span>
-                  <span className="text-slate-500 block font-mono text-xs">{confirmedTicket.id_number}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-xs font-semibold uppercase">Visitor Category:</span>
-                  <span className="font-bold text-slate-900">{getCategoryLabel(confirmedTicket.patient_type)}</span>
-                  <span className="text-slate-500 block text-xs">{confirmedTicket.department}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-xs font-semibold uppercase">Scheduled Arrival Time:</span>
-                  <span className="font-bold text-slate-900">
-                    {confirmedTicket.appointment_date} at {confirmedTicket.time_slot ? confirmedTicket.time_slot.split(' - ')[0] : ''}
+                  <span className="text-slate-400 block text-[11px] font-bold uppercase tracking-wider">
+                    Patient Name:
                   </span>
-                  <span className="text-xs text-slate-500 block">
-                    (Estimated 15–30 min buffer)
+                  <span className="font-bold text-slate-900 block leading-tight">
+                    {confirmedTicket.patient_name}
+                  </span>
+                  <span className="text-slate-500 font-mono text-xs block mt-0.5">
+                    {confirmedTicket.id_number}
                   </span>
                 </div>
+
                 <div>
-                  <span className="text-slate-400 block text-xs font-semibold uppercase">Station & Doctor:</span>
-                  <span className="font-bold text-earist-dark">
-                    Dr. {confirmedTicket.doctor?.first_name} {confirmedTicket.doctor?.last_name}
+                  <span className="text-slate-400 block text-[11px] font-bold uppercase tracking-wider">
+                    Visitor Category:
                   </span>
-                  <span className="text-slate-500 block text-xs">
+                  <span className="font-bold text-slate-900 block leading-tight">
+                    {getCategoryLabel(confirmedTicket.patient_type)}
+                  </span>
+                  <span className="text-slate-500 text-xs block mt-0.5 truncate">
+                    {confirmedTicket.department}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-slate-400 block text-[11px] font-bold uppercase tracking-wider">
+                    Consultation Service:
+                  </span>
+                  <span className="font-bold text-earist-dark block leading-tight">
+                    {confirmedTicket.service || 'General Medical Consultation'}
+                  </span>
+                  <span className="text-slate-500 text-xs block mt-0.5">
+                    Standard Campus Care
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-slate-400 block text-[11px] font-bold uppercase tracking-wider">
+                    Station & Doctor:
+                  </span>
+                  <span className="font-bold text-slate-900 block leading-tight">
+                    {formatDoctorName(confirmedTicket.doctor?.first_name, confirmedTicket.doctor?.last_name)}
+                  </span>
+                  <span className="text-slate-500 text-xs block mt-0.5">
                     {confirmedTicket.doctor?.room_number || 'Main Clinic Rm 101'}
+                  </span>
+                </div>
+
+                <div className="sm:col-span-2 pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <span className="text-slate-400 block text-[11px] font-bold uppercase tracking-wider">
+                      Scheduled Arrival Window:
+                    </span>
+                    <span className="font-extrabold text-slate-900 text-sm sm:text-base">
+                      {confirmedTicket.appointment_date} at {confirmedTicket.time_slot ? confirmedTicket.time_slot.split(' - ')[0] : ''}
+                    </span>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                    Buffer: 15–30 min arrival
                   </span>
                 </div>
               </div>
 
-              {/* Fast-Check-in QR Code */}
-              <div className="flex justify-center sm:border-l sm:border-slate-200 sm:pl-4">
+              {/* Fast-Check-in QR Code Stub */}
+              <div className="flex flex-col items-center justify-center sm:border-l sm:border-dashed sm:border-slate-300 sm:pl-5 py-1">
                 <TicketQRCode 
                   value={confirmedTicket.reference_code} 
-                  size={100}
-                  label="Scan at Clinic Desk"
+                  size={105}
+                  label="Scan at Triage Desk"
                 />
               </div>
+            </div>
+
+            {/* Checklist / Reminder Bar */}
+            <div className="bg-amber-50/70 border-t border-amber-200/70 px-5 py-2.5 text-xs text-amber-950 flex items-center gap-2">
+              <Info className="w-4 h-4 text-amber-700 shrink-0" />
+              <span>
+                <strong>Triage Reminder:</strong> Please present your physical EARIST Student ID or validated Registration Form (COR) upon arrival.
+              </span>
             </div>
           </div>
 
           {confirmedTicket.email && (
-            <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs sm:text-sm text-emerald-900 font-medium flex items-center gap-2.5 text-left">
+            <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs sm:text-sm text-emerald-900 font-medium flex items-center gap-2.5 text-left">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
               <span>
                 An official confirmation pass and tracking reference code has been sent to <strong>{confirmedTicket.email}</strong>.
@@ -719,7 +804,7 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
             <button
               type="button"
               onClick={() => downloadICSFile({
@@ -1382,7 +1467,7 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
                           </div>
                           <div>
                             <p className="text-sm font-bold text-slate-900">
-                              Dr. {doc.first_name} {doc.last_name}
+                              {formatDoctorName(doc.first_name, doc.last_name)}
                             </p>
                             <p className="text-xs text-slate-500 mt-0.5">
                               {doc.specialization} • {doc.room_number || 'Room 101'}

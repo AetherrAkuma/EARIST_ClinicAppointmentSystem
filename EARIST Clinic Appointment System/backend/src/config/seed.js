@@ -56,7 +56,7 @@ function seedDatabase() {
       'dr.bob@earist.edu.ph',
       passwordHash,
       'assistant',
-      'Dr. Roberto',
+      'Roberto',
       'Williams',
       'MED-2026-008',
       '0919-444-5566'
@@ -74,7 +74,7 @@ function seedDatabase() {
       'dr.alice@earist.edu.ph',
       passwordHash,
       'assistant',
-      'Dr. Alice',
+      'Alice',
       'Johnson',
       'MED-2026-012',
       '0918-222-3344'

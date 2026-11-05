@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
+import { formatDoctorName } from '../utils/formatters';
 import {
   Calendar,
   Clock,
@@ -390,7 +391,7 @@ export const PatientDashboard = () => {
                   >
                     {doctors.map((doc) => (
                       <option key={doc.assistant_id} value={doc.assistant_id}>
-                        Dr. {doc.first_name} {doc.last_name} — {doc.specialization} ({doc.room_number})
+                        {formatDoctorName(doc.first_name, doc.last_name)} — {doc.specialization} ({doc.room_number})
                       </option>
                     ))}
                   </select>

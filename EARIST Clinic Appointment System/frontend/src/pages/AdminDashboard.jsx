@@ -5,6 +5,7 @@ import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
 import { WalkInModal } from '../components/doctor/WalkInModal';
 import { PatientHistoryModal } from '../components/doctor/PatientHistoryModal';
+import { formatDoctorName } from '../utils/formatters';
 import {
   Shield,
   Users,
@@ -718,7 +719,7 @@ export const AdminDashboard = () => {
 
                         <td className="py-4 px-5 whitespace-nowrap">
                           <div className="font-bold text-earist-dark">
-                            Dr. {appt.doctor_first_name} {appt.doctor_last_name}
+                            {formatDoctorName(appt.doctor_first_name, appt.doctor_last_name)}
                           </div>
                           <div className="text-xs text-slate-500">
                             {appt.room_number || 'Clinic Rm 101'}

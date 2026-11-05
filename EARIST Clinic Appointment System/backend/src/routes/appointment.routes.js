@@ -1125,7 +1125,7 @@ router.patch('/:reference/reschedule', async (req, res) => {
       appointment_date: updatedAppointment.appointment_date,
       time_slot: updatedAppointment.time_slot,
       service_type: updatedAppointment.service_type,
-      doctor_name: `Dr. ${targetDoctor.first_name} ${targetDoctor.last_name}`,
+      doctor_name: `${targetDoctor.first_name} ${targetDoctor.last_name}`,
       room_number: targetDoctor.room_number || 'Main Clinic',
       symptoms: updatedAppointment.symptoms
     }).catch(err => console.error('Error sending rescheduled confirmation email:', err));
