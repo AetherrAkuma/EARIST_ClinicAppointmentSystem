@@ -372,12 +372,12 @@ router.get(['/:id/available-slots', '/:id/check-date'], (req, res) => {
   }
 
   const doctor = db.prepare('SELECT * FROM assistants WHERE assistant_id = ?').get(id);
-  if (!doctor || doctor.is_on_duty === 0) {
+  if (!doctor || doctor.is_active === 0) {
     return res.json({
       success: true,
       is_available: false,
-      message: 'Doctor is currently off-duty.',
-      reason: 'Doctor is currently off-duty.',
+      message: 'Medical officer station is inactive or not found.',
+      reason: 'Medical officer station is inactive or not found.',
       slots: [],
       available_slots: []
     });

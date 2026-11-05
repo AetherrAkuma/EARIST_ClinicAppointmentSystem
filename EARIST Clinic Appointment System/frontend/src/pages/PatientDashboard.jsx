@@ -522,7 +522,7 @@ export const PatientDashboard = () => {
                 <div>
                   <span className="text-slate-400 block font-medium">College Department:</span>
                   <span className="font-bold text-slate-900">
-                    {profile.department || 'College of Engineering'}
+                    {profile.department || 'College of Computing Studies'}
                   </span>
                 </div>
                 <div>

@@ -79,7 +79,7 @@ export const LoginPage = ({ onNavigate, onOpenBooking, onOpenTrack }) => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                Official EARIST Email
+                Official Account Email
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -89,7 +89,7 @@ export const LoginPage = ({ onNavigate, onOpenBooking, onOpenTrack }) => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. clinic.officer@earist.edu.ph"
+                  placeholder="e.g. staff@e-clinic.ragetech.dev or admin@earist.edu.ph"
                   required
                   autoComplete="email"
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson text-sm transition-all"

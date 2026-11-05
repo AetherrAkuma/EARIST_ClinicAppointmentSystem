@@ -1,7 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
 import { Badge } from '../common/Badge';
-import { Search, Calendar, Clock, Stethoscope, MapPin, CheckCircle2, Printer, AlertCircle, FileText, ArrowRight, XCircle } from 'lucide-react';
+import { TicketQRCode } from '../common/TicketQRCode';
+import { RescheduleModal } from './RescheduleModal';
+import { downloadICSFile } from '../../utils/calendar';
+import {
+  Search,
+  Calendar,
+  Clock,
+  Stethoscope,
+  MapPin,
+  CheckCircle2,
+  Printer,
+  AlertCircle,
+  FileText,
+  ArrowRight,
+  XCircle,
+  QrCode
+} from 'lucide-react';
 
 export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule, initialQuery = '' }) => {
   const [query, setQuery] = useState('');
@@ -9,7 +25,9 @@ export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule, initialQu
   const [appointment, setAppointment] = useState(null);
   const [error, setError] = useState('');
   const [cancelling, setCancelling] = useState(false);
+  const [checkingIn, setCheckingIn] = useState(false);
   const [actionNotice, setActionNotice] = useState('');
+  const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
 
   const performSearch = async (targetQuery) => {
     const q = (targetQuery !== undefined ? targetQuery : query || '').trim();
@@ -53,14 +71,17 @@ export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule, initialQu
 
   const handleCancelAppointment = async () => {
     if (!appointment) return;
-    if (!window.confirm(`Are you sure you want to cancel this clinic appointment (${appointment.reference_code})?`)) {
-      return;
-    }
+    const reason = window.prompt(
+      `Are you sure you want to cancel this clinic appointment (${appointment.reference_code})?\n\nOptional: Please state your reason for cancellation:`
+    );
+    if (reason === null) return; // User pressed Cancel
 
     setCancelling(true);
     try {
       const res = await fetch(`/api/appointments/${appointment.appointment_id}/cancel`, {
-        method: 'PATCH'
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cancellation_reason: reason.trim() || 'Cancelled by patient' })
       });
       const data = await res.json();
       if (data.success) {
@@ -76,13 +97,42 @@ export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule, initialQu
     }
   };
 
+  const handleCheckIn = async () => {
+    if (!appointment) return;
+    setCheckingIn(true);
+    try {
+      const res = await fetch(`/api/appointments/${encodeURIComponent(appointment.reference_code)}/check-in`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_number: appointment.id_number })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Check-in failed');
+      }
+      setAppointment(data.appointment);
+      setActionNotice(data.message || 'Check-in successful! Please proceed to the clinic waiting area.');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
   const handleRescheduleClick = () => {
-    if (!appointment || !onReschedule) return;
-    onReschedule(appointment);
+    if (!appointment) return;
+    setIsRescheduleOpen(true);
+  };
+
+  const handleRescheduleSuccess = (updatedAppointment) => {
+    setIsRescheduleOpen(false);
+    setAppointment(updatedAppointment);
+    setActionNotice(`Appointment successfully rescheduled to ${updatedAppointment.appointment_date} (${updatedAppointment.time_slot})!`);
   };
 
   return (
-    <Modal
+    <>
+      <Modal
       isOpen={isOpen}
       onClose={() => {
         setActionNotice('');
@@ -93,22 +143,22 @@ export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule, initialQu
     >
       <div className="space-y-6">
         {/* Search Bar */}
-        <form onSubmit={handleSearch} className="flex gap-2.5">
+        <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2.5">
           <div className="relative flex-1">
             <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="e.g. EAR-2026-A109, Student ID, or Registered Email"
+              placeholder="e.g. EAR-2026-A109, Student ID, or Email"
               required
-              className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson font-medium"
+              className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-300 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson font-medium"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-3 rounded-xl text-sm font-bold text-white earist-gradient hover:brightness-105 shadow-xs shrink-0 flex items-center gap-2 cursor-pointer transition-colors"
+            className="w-full sm:w-auto px-6 py-3 rounded-xl text-sm font-bold text-white earist-gradient hover:brightness-105 shadow-xs shrink-0 flex items-center justify-center gap-2 cursor-pointer transition-colors"
           >
             {loading ? 'Searching...' : 'Track Ticket'}
           </button>
@@ -161,11 +211,13 @@ export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule, initialQu
             </div>
 
             {/* Live Queue Position Card (shown for today's active appointments) */}
-            {appointment.is_today && ['Approved', 'OnGoing'].includes(appointment.status) && (
+            {appointment.is_today && ['Approved', 'CheckedIn', 'OnGoing'].includes(appointment.status) && (
               <div
                 className={`p-4 rounded-xl border text-sm ${
                   appointment.status === 'OnGoing'
                     ? 'bg-emerald-50 border-emerald-300'
+                    : appointment.status === 'CheckedIn'
+                    ? 'bg-teal-50 border-teal-300'
                     : 'bg-amber-50 border-amber-300'
                 }`}
               >
@@ -180,6 +232,20 @@ export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule, initialQu
                       </span>
                       <p className="text-sm font-semibold text-slate-900 mt-0.5">
                         Dr. {appointment.doctor_first_name} {appointment.doctor_last_name} is actively consulting with you.
+                      </p>
+                    </div>
+                  </div>
+                ) : appointment.status === 'CheckedIn' ? (
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center font-bold shrink-0">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className="font-extrabold text-teal-900 uppercase tracking-wider text-xs">
+                        Checked In • Waiting in Clinic Lobby
+                      </span>
+                      <p className="text-sm font-semibold text-slate-900 mt-0.5">
+                        Your arrival is confirmed. Please take a seat outside Room {appointment.room_number || '101'}.
                       </p>
                     </div>
                   </div>
@@ -210,8 +276,31 @@ export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule, initialQu
               </div>
             )}
 
-            {/* Schedule & Station */}
-            <div className="grid sm:grid-cols-2 gap-3 text-sm text-slate-700">
+            {/* Prompt: Self Check-In if Scheduled Today and Not Yet Checked In */}
+            {appointment.is_today && appointment.status === 'Approved' && (
+              <div className="p-4 rounded-xl bg-teal-50 border border-teal-300 text-teal-950 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div>
+                  <h4 className="font-bold text-sm text-teal-900 flex items-center gap-1.5">
+                    <MapPin className="w-4 h-4 text-teal-600" />
+                    Are you at the clinic reception area?
+                  </h4>
+                  <p className="text-xs text-teal-800 mt-0.5">
+                    Confirm your physical arrival to join the doctor's active waiting room queue.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCheckIn}
+                  disabled={checkingIn}
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer shrink-0"
+                >
+                  {checkingIn ? 'Checking in...' : 'I Have Arrived (Self Check-In)'}
+                </button>
+              </div>
+            )}
+
+            {/* Schedule, Station & QR */}
+            <div className="grid sm:grid-cols-3 gap-3 text-sm text-slate-700 items-center">
               <div className="p-3.5 rounded-xl bg-white border border-slate-200">
                 <span className="text-xs font-bold text-slate-400 block uppercase">Appointment Time</span>
                 <div className="font-bold text-slate-900 mt-1 flex items-center gap-2">
@@ -234,6 +323,15 @@ export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule, initialQu
                   <MapPin className="w-4 h-4 text-emerald-600" />
                   {appointment.room_number || 'Main Clinic Rm 101'}
                 </div>
+              </div>
+
+              {/* QR Code Pass */}
+              <div className="p-2 rounded-xl bg-white border border-slate-200 flex justify-center items-center">
+                <TicketQRCode 
+                  value={appointment.reference_code}
+                  size={85}
+                  label="Scan at Clinic"
+                />
               </div>
             </div>
 
@@ -271,22 +369,30 @@ export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule, initialQu
               </div>
             )}
 
-            {/* Active Appointment Actions (Reschedule & Cancel) */}
-            {appointment.status === 'Approved' && (
-              <div className="flex gap-2 pt-2 border-t border-slate-200">
+            {/* Active Appointment Actions (Calendar, Reschedule & Cancel) */}
+            {['Approved', 'CheckedIn'].includes(appointment.status) && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => downloadICSFile(appointment)}
+                  className="py-2.5 rounded-xl text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                  Add to Calendar
+                </button>
                 <button
                   type="button"
                   onClick={handleRescheduleClick}
-                  className="flex-1 py-2.5 rounded-xl text-xs font-bold text-earist-dark bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="py-2.5 rounded-xl text-xs font-bold text-earist-dark bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                 >
-                  <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
                   Reschedule Date / Time
                 </button>
                 <button
                   type="button"
                   onClick={handleCancelAppointment}
                   disabled={cancelling}
-                  className="flex-1 py-2.5 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                  className="py-2.5 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
                 >
                   <XCircle className="w-3.5 h-3.5 text-rose-500" />
                   {cancelling ? 'Cancelling...' : 'Cancel Appointment'}
@@ -297,5 +403,14 @@ export const TrackAppointmentModal = ({ isOpen, onClose, onReschedule, initialQu
         )}
       </div>
     </Modal>
-  );
+
+    {/* Dedicated Reschedule Modal */}
+    <RescheduleModal
+      isOpen={isRescheduleOpen}
+      onClose={() => setIsRescheduleOpen(false)}
+      appointment={appointment}
+      onRescheduleSuccess={handleRescheduleSuccess}
+    />
+  </>
+);
 };

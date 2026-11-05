@@ -172,6 +172,49 @@ export const DoctorDashboard = () => {
     }
   };
 
+  const handleMarkArrived = async (referenceCode) => {
+    try {
+      const res = await fetch(`/api/appointments/${encodeURIComponent(referenceCode)}/check-in`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchDoctorData();
+      } else {
+        alert(data.message || 'Error marking patient as arrived');
+      }
+    } catch (err) {
+      alert('Error marking patient arrival');
+    }
+  };
+
+  const handleMarkNoShow = async (appointmentId, referenceCode) => {
+    if (!window.confirm(`Mark appointment (${referenceCode}) as No-Show?\n\nThis records that the patient missed their consultation.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/appointments/${appointmentId}/no-show`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchDoctorData();
+      } else {
+        alert(data.message || 'Error marking no-show');
+      }
+    } catch (err) {
+      alert('Error updating to No-Show');
+    }
+  };
+
   const openConsultation = (appt) => {
     setConsultationAppt(appt);
     setDiagnosis(appt.diagnosis || '');
@@ -301,17 +344,25 @@ export const DoctorDashboard = () => {
 
   // 1. Today's active consultations queue (today's scheduled arrivals)
   const todayQueue = filteredQueue
-    .filter((item) => item.appointment_date <= todayStr && item.status !== 'Completed')
-    .sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''));
+    .filter((item) => item.appointment_date <= todayStr && !['Completed', 'Cancelled', 'NoShow'].includes(item.status))
+    .sort((a, b) => {
+      const getPriority = (s) => (s === 'OnGoing' ? 1 : s === 'CheckedIn' ? 2 : 3);
+      const pDiff = getPriority(a.status) - getPriority(b.status);
+      if (pDiff !== 0) return pDiff;
+      if (a.status === 'CheckedIn' && b.status === 'CheckedIn') {
+        return (a.checked_in_at || '').localeCompare(b.checked_in_at || '');
+      }
+      return (a.time_slot || '').localeCompare(b.time_slot || '');
+    });
 
   // 2. Upcoming schedule (future dates)
   const upcomingQueue = filteredQueue
-    .filter((item) => item.appointment_date > todayStr && item.status !== 'Completed')
+    .filter((item) => item.appointment_date > todayStr && !['Completed', 'Cancelled', 'NoShow'].includes(item.status))
     .sort((a, b) => (a.appointment_date || '').localeCompare(b.appointment_date || '') || (a.time_slot || '').localeCompare(b.time_slot || ''));
 
-  // 3. Completed logsheet records
+  // 3. Completed logsheet records (includes Completed and No-Show records)
   const completedQueue = filteredQueue
-    .filter((item) => item.status === 'Completed')
+    .filter((item) => ['Completed', 'NoShow'].includes(item.status))
     .sort((a, b) => (b.appointment_date || '').localeCompare(a.appointment_date || ''));
 
   const profile = user?.profile || {};
@@ -538,6 +589,7 @@ export const DoctorDashboard = () => {
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {todayQueue.map((appt) => {
                     const isOngoing = appt.status === 'OnGoing';
+                    const isCheckedIn = appt.status === 'CheckedIn';
                     const isSevere = appt.symptom_severity === 'Severe';
                     const isStudent = appt.patient_type === 'student';
                     const isOutsource = appt.patient_type === 'outsource_extension';
@@ -548,6 +600,8 @@ export const DoctorDashboard = () => {
                         className={`bg-white rounded-2xl border p-6 flex flex-col justify-between shadow-xs transition-all ${
                           isOngoing
                             ? 'border-blue-400 ring-2 ring-blue-100 bg-blue-50/15'
+                            : isCheckedIn
+                            ? 'border-teal-400 ring-2 ring-teal-100 bg-teal-50/15'
                             : isSevere
                             ? 'border-rose-300 ring-2 ring-rose-50'
                             : 'border-slate-200 hover:border-slate-300'
@@ -561,9 +615,16 @@ export const DoctorDashboard = () => {
                                 <Clock className="w-3.5 h-3.5 text-emerald-600" />
                                 {appt.time_slot}
                               </span>
-                              <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider bg-emerald-100/60 px-2 py-0.5 rounded">
-                                Today
-                              </span>
+                              {isCheckedIn ? (
+                                <span className="text-[11px] font-bold text-teal-800 uppercase tracking-wider bg-teal-100 px-2 py-0.5 rounded border border-teal-200 flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-teal-600 animate-pulse" />
+                                  In Waiting Room
+                                </span>
+                              ) : (
+                                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                  Awaiting Arrival
+                                </span>
+                              )}
                               {appt.is_walkin === 1 && (
                                 <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider bg-amber-100 px-2 py-0.5 rounded border border-amber-200">
                                   Walk-In
@@ -641,15 +702,23 @@ export const DoctorDashboard = () => {
                         </div>
 
                         {/* Context-Aware Actions for Today */}
-                        <div className="pt-5 mt-5 border-t border-slate-100 flex items-center gap-2.5">
-                          {appt.status === 'Approved' && (
+                        <div className="pt-5 mt-5 border-t border-slate-100 flex items-center gap-2">
+                          {appt.status === 'CheckedIn' && (
                             <>
                               <button
                                 onClick={() => updateStatus(appt.appointment_id, 'OnGoing')}
                                 className="flex-1 py-3 rounded-xl text-xs font-extrabold bg-[#800020] hover:bg-[#68001a] text-white shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                               >
                                 <Stethoscope className="w-4 h-4" />
-                                <span>Start Consultation</span>
+                                <span>Call & Start</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleMarkNoShow(appt.appointment_id, appt.reference_code)}
+                                className="px-3 py-3 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors cursor-pointer"
+                                title="Mark as No-Show"
+                              >
+                                No-Show
                               </button>
                               <button
                                 type="button"
@@ -662,7 +731,49 @@ export const DoctorDashboard = () => {
                               </button>
                               <button
                                 onClick={() => setViewDetailsAppt(appt)}
-                                className="px-4 py-3 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+                                className="px-3 py-3 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+                              >
+                                Details
+                              </button>
+                            </>
+                          )}
+
+                          {appt.status === 'Approved' && (
+                            <>
+                              <button
+                                onClick={() => handleMarkArrived(appt.reference_code)}
+                                className="flex-1 py-3 rounded-xl text-xs font-extrabold bg-teal-700 hover:bg-teal-800 text-white shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                                <span>Mark Arrived</span>
+                              </button>
+                              <button
+                                onClick={() => updateStatus(appt.appointment_id, 'OnGoing')}
+                                className="py-3 px-3 rounded-xl text-xs font-extrabold bg-[#800020] hover:bg-[#68001a] text-white shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1"
+                                title="Start Consultation directly"
+                              >
+                                <Stethoscope className="w-4 h-4" />
+                                <span>Consult</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleMarkNoShow(appt.appointment_id, appt.reference_code)}
+                                className="px-2.5 py-3 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-colors cursor-pointer"
+                                title="Mark as No-Show"
+                              >
+                                No-Show
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setHistoryPatient({ idNumber: appt.id_number, patientName: appt.patient_name })}
+                                className="px-2.5 py-3 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer flex items-center gap-1"
+                                title="View Patient Clinic History"
+                              >
+                                <History className="w-3.5 h-3.5 text-slate-500" />
+                              </button>
+                              <button
+                                onClick={() => setViewDetailsAppt(appt)}
+                                className="px-3 py-3 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
                               >
                                 Details
                               </button>
@@ -826,9 +937,7 @@ export const DoctorDashboard = () => {
                               <Calendar className="w-3.5 h-3.5 text-slate-500" />
                               {appt.appointment_date} • {appt.time_slot ? appt.time_slot.split(' - ')[0] : ''}
                             </span>
-                            <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-md">
-                              Completed
-                            </span>
+                            <Badge status={appt.status} />
                           </div>
 
                           {/* Patient Identity */}

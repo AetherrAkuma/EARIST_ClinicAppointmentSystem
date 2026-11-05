@@ -31,7 +31,7 @@ export const WalkInModal = ({
   const [patientType, setPatientType] = useState('student');
   const [patientName, setPatientName] = useState('');
   const [idNumber, setIdNumber] = useState('');
-  const [department, setDepartment] = useState('College of Engineering (CEN)');
+  const [department, setDepartment] = useState('College of Computing Studies');
   const [course, setCourse] = useState('');
   const [yearSection, setYearSection] = useState('');
   const [age, setAge] = useState('');
@@ -236,7 +236,7 @@ export const WalkInModal = ({
             <input
               type="text"
               required
-              placeholder="e.g. College of Engineering (CEN)"
+              placeholder="e.g. College of Computing Studies"
               value={department}
               onChange={(e) => setDepartment(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"

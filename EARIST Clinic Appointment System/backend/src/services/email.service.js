@@ -4,18 +4,59 @@ const nodemailer = require('nodemailer');
 let transporter = null;
 
 function getTransporter() {
-  if (!transporter && process.env.SMTP_HOST && process.env.SMTP_USER) {
+  const host = process.env.SMTP_HOST || (process.env.BREVO_SMTP_KEY ? 'smtp-relay.brevo.com' : null);
+  const user = process.env.SMTP_USER || process.env.BREVO_SMTP_USER;
+  const pass = process.env.SMTP_PASS || process.env.BREVO_SMTP_KEY;
+
+  if (!transporter && host && user && pass) {
     transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
+      host: host,
       port: parseInt(process.env.SMTP_PORT || '587', 10),
       secure: process.env.SMTP_PORT === '465',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      }
+      auth: { user, pass }
     });
   }
   return transporter;
+}
+
+/**
+ * Dispatch an email via Brevo REST API if API Key is configured
+ */
+async function sendViaBrevoApi({ to, subject, htmlContent }) {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey || apiKey.includes('your_brevo_api_key_here') || apiKey.trim() === '') return null;
+
+  try {
+    const fromEmail = process.env.BREVO_SENDER_EMAIL || 'no-reply@e-clinic.ragetech.dev';
+    const fromName = process.env.BREVO_SENDER_NAME || 'EARIST e-Clinic';
+
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': apiKey,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        sender: { name: fromName, email: fromEmail },
+        to: [{ email: to }],
+        subject: subject,
+        htmlContent: htmlContent
+      })
+    });
+
+    const data = await response.json();
+    if (response.ok) {
+      console.log(`[Email Service - Brevo API] Sent to ${to} (MessageID: ${data.messageId})`);
+      return { success: true, messageId: data.messageId, mode: 'brevo_api' };
+    } else {
+      console.error(`[Email Service - Brevo API Error]`, data);
+      return { success: false, error: data.message, mode: 'brevo_api_error' };
+    }
+  } catch (err) {
+    console.error(`[Email Service - Brevo API Fetch Error]:`, err.message);
+    return { success: false, error: err.message, mode: 'brevo_api_error' };
+  }
 }
 
 /**
@@ -62,7 +103,7 @@ async function sendAppointmentConfirmationEmail(details) {
       ? 'Outsource / Extension Personnel'
       : 'Academic / Non-Academic Personnel';
 
-  const fromAddress = process.env.SMTP_FROM || '"EARIST Campus Health Services" <clinic@earist.edu.ph>';
+  const fromAddress = process.env.SMTP_FROM || process.env.BREVO_SENDER_EMAIL || '"EARIST e-Clinic" <no-reply@e-clinic.ragetech.dev>';
   const subject = `EARIST Clinic Appointment Confirmation — Ticket #${reference_code}`;
 
   const htmlContent = `
@@ -167,6 +208,13 @@ async function sendAppointmentConfirmationEmail(details) {
     </html>
   `;
 
+  // 1. Try Brevo REST API if API Key configured
+  if (process.env.BREVO_API_KEY) {
+    const apiResult = await sendViaBrevoApi({ to: email, subject, htmlContent });
+    if (apiResult && apiResult.success) return apiResult;
+  }
+
+  // 2. Try SMTP Transporter (Brevo SMTP relay or custom host)
   const activeTransporter = getTransporter();
 
   if (activeTransporter) {
@@ -177,17 +225,18 @@ async function sendAppointmentConfirmationEmail(details) {
         subject: subject,
         html: htmlContent
       });
-      console.log(`[Email Service] Sent confirmation email to ${email} (MessageID: ${info.messageId})`);
+      console.log(`[Email Service - SMTP] Sent confirmation email to ${email} (MessageID: ${info.messageId})`);
       return { success: true, messageId: info.messageId, mode: 'smtp' };
     } catch (err) {
-      console.error(`[Email Service] SMTP Delivery Error for ${email}:`, err.message);
+      console.error(`[Email Service - SMTP] Delivery Error for ${email}:`, err.message);
       return { success: false, error: err.message, mode: 'smtp_error' };
     }
   } else {
     // Graceful fallback mode: log preview to console so booking continues smoothly without SMTP configuration
     console.log(`========================================================================`);
-    console.log(`[EMAIL SERVICE - LOG MODE (Configure SMTP in .env for live dispatch)]`);
+    console.log(`[EMAIL SERVICE - LOG MODE (Configure Brevo / SMTP in .env for live dispatch)]`);
     console.log(`To: ${email}`);
+    console.log(`From: ${fromAddress}`);
     console.log(`Subject: ${subject}`);
     console.log(`Patient: ${patient_name} (${id_number})`);
     console.log(`Tracking Reference Code: ${reference_code}`);
@@ -197,7 +246,97 @@ async function sendAppointmentConfirmationEmail(details) {
   }
 }
 
+/**
+ * Send an OTP verification code to verify email authenticity before booking
+ * @param {string} email
+ * @param {string} otpCode
+ */
+async function sendOtpVerificationEmail(email, otpCode) {
+  if (!email || !email.includes('@')) {
+    return { success: false, message: 'Invalid or missing email' };
+  }
+
+  const subject = `Your EARIST Clinic Verification Code: ${otpCode}`;
+  const fromAddress = process.env.SMTP_FROM || process.env.BREVO_SENDER_EMAIL || '"EARIST e-Clinic" <no-reply@e-clinic.ragetech.dev>';
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Clinic Verification Code</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+  <div style="max-width: 520px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+    <div style="background-color: #800020; padding: 24px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 18px; font-weight: 800; letter-spacing: 0.5px;">
+        EARIST HEALTH SERVICES DIRECTORATE
+      </h1>
+      <p style="color: #fde68a; margin: 4px 0 0 0; font-size: 11px; text-transform: uppercase; font-weight: 700; letter-spacing: 1px;">
+        Email Authenticity Verification
+      </p>
+    </div>
+    <div style="padding: 28px 24px; text-align: center;">
+      <p style="font-size: 14px; color: #475569; margin: 0 0 20px 0;">
+        You requested a verification code to schedule an appointment at the EARIST Campus Clinic. Use the code below to complete your booking:
+      </p>
+      <div style="display: inline-block; background-color: #fffbeb; border: 2px dashed #d97706; border-radius: 12px; padding: 14px 28px; margin-bottom: 20px;">
+        <span style="font-family: monospace, Courier; font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #800020;">
+          ${otpCode}
+        </span>
+      </div>
+      <p style="font-size: 12px; color: #64748b; margin: 0 0 8px 0;">
+        This code is valid for <strong>10 minutes</strong>. Do not share this code with anyone.
+      </p>
+      <p style="font-size: 11px; color: #94a3b8; margin: 0;">
+        If you did not request this code, you can safely ignore this email.
+      </p>
+    </div>
+    <div style="background-color: #f1f5f9; padding: 16px 20px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 11px; color: #64748b;">
+      EARIST Manila Campus • Nagtahan, Sampaloc, Manila • Data Privacy Act Compliant
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  // 1. Try Brevo REST API if API Key configured
+  if (process.env.BREVO_API_KEY) {
+    const apiResult = await sendViaBrevoApi({ to: email, subject, htmlContent });
+    if (apiResult && apiResult.success) return apiResult;
+  }
+
+  // 2. Try SMTP Transporter (Brevo SMTP relay or custom host)
+  const activeTransporter = getTransporter();
+
+  if (activeTransporter) {
+    try {
+      const info = await activeTransporter.sendMail({
+        from: fromAddress,
+        to: email,
+        subject,
+        html: htmlContent
+      });
+      console.log(`[Email Service - SMTP] Sent OTP email to ${email} (MessageID: ${info.messageId})`);
+      return { success: true, messageId: info.messageId, mode: 'smtp' };
+    } catch (err) {
+      console.error(`[Email Service - SMTP] Delivery Error for OTP to ${email}:`, err.message);
+      return { success: false, error: err.message, mode: 'smtp_error' };
+    }
+  } else {
+    console.log(`========================================================================`);
+    console.log(`[EMAIL SERVICE - LOG MODE (Configure Brevo / SMTP in .env for live dispatch)]`);
+    console.log(`To: ${email}`);
+    console.log(`From: ${fromAddress}`);
+    console.log(`Subject: ${subject}`);
+    console.log(`Verification Code (OTP): [ ${otpCode} ] (Valid for 10 minutes)`);
+    console.log(`========================================================================`);
+    return { success: true, mode: 'logged' };
+  }
+}
+
 module.exports = {
-  sendAppointmentConfirmationEmail
+  sendAppointmentConfirmationEmail,
+  sendOtpVerificationEmail
 };
 

@@ -6,10 +6,23 @@ import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { DoctorDashboard } from './pages/DoctorDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { PatientDashboard } from './pages/PatientDashboard';
 import { DirectBookingWizard } from './components/patient/DirectBookingWizard';
 import { TrackAppointmentModal } from './components/patient/TrackAppointmentModal';
 import { UpdateBanner } from './components/common/UpdateBanner';
-import { HeartPulse, MapPin, Mail, Phone } from 'lucide-react';
+import {
+  HeartPulse,
+  MapPin,
+  Mail,
+  Phone,
+  Home,
+  CalendarCheck,
+  Search,
+  UserCheck,
+  Shield,
+  Stethoscope,
+  User
+} from 'lucide-react';
 
 const MainApp = () => {
   const { user, loading, isAdmin, isDoctor, isPatient } = useAuth();
@@ -54,7 +67,7 @@ const MainApp = () => {
         onOpenTrack={handleOpenTrack}
       />
 
-      <main className="flex-1">
+      <main className="flex-1 pb-20 sm:pb-0">
         <AnimatePresence mode="wait">
           {user ? (
             <motion.div
@@ -66,31 +79,7 @@ const MainApp = () => {
             >
               {isAdmin && <AdminDashboard />}
               {isDoctor && <DoctorDashboard />}
-              {!isAdmin && !isDoctor && (
-                <div className="max-w-md mx-auto my-16 p-8 bg-white rounded-2xl shadow-sm border border-slate-200 text-center space-y-4">
-                  <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-900 flex items-center justify-center mx-auto border border-amber-200">
-                    <HeartPulse className="w-6 h-6 text-earist-crimson" />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-900">EARIST Campus Health Services</h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">
-                    Student, faculty, and personnel clinic consultations can be booked directly without requiring prior sign up.
-                  </p>
-                  <div className="flex gap-3 justify-center pt-2">
-                    <button
-                      onClick={() => handleOpenBooking(null)}
-                      className="px-5 py-2.5 rounded-xl text-sm font-bold text-white earist-gradient shadow-xs hover:brightness-105 transition-colors"
-                    >
-                      Book Appointment
-                    </button>
-                    <button
-                      onClick={() => handleOpenTrack('')}
-                      className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors"
-                    >
-                      Track Ticket
-                    </button>
-                  </div>
-                </div>
-              )}
+              {!isAdmin && !isDoctor && <PatientDashboard />}
             </motion.div>
           ) : (
             <motion.div
@@ -172,7 +161,7 @@ const MainApp = () => {
               </p>
               <p className="flex items-center gap-1.5 text-slate-400">
                 <Mail className="w-4 h-4 text-amber-400" />
-                <span>clinic@earist.edu.ph</span>
+                <span>clinic@e-clinic.ragetech.dev</span>
               </p>
             </div>
           </div>
@@ -183,6 +172,80 @@ const MainApp = () => {
           </div>
         </div>
       </footer>
+      {/* Native-Like Mobile Bottom Navigation Bar (App Dock) */}
+      <nav
+        aria-label="Mobile Navigation"
+        className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-3 py-1.5 flex items-center justify-around sm:hidden select-none"
+      >
+        <button
+          type="button"
+          onClick={() => {
+            setCurrentView('home');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+            currentView === 'home' && !user ? 'text-earist-crimson font-bold' : 'text-slate-500 hover:text-slate-900 font-medium'
+          }`}
+        >
+          <Home className="w-5 h-5 mb-0.5" />
+          <span className="text-[10px] tracking-tight">Home</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleOpenTrack('')}
+          className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-slate-500 hover:text-slate-900 font-medium transition-all cursor-pointer"
+        >
+          <Search className="w-5 h-5 mb-0.5" />
+          <span className="text-[10px] tracking-tight">Track Ticket</span>
+        </button>
+
+        {/* Elevated Center Booking Action Button */}
+        <button
+          type="button"
+          onClick={() => handleOpenBooking(null)}
+          className="-mt-5 w-14 h-14 rounded-full earist-gradient text-white flex flex-col items-center justify-center shadow-lg shadow-crimson-900/30 border-4 border-white active:scale-95 transition-transform cursor-pointer group"
+          aria-label="Direct Clinic Booking"
+        >
+          <CalendarCheck className="w-6 h-6 text-earist-gold group-hover:scale-110 transition-transform" />
+          <span className="text-[9px] font-extrabold text-amber-200 uppercase tracking-tighter">Book</span>
+        </button>
+
+        <a
+          href="tel:0287166273"
+          className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-emerald-700 font-medium transition-all"
+          title="Emergency Hotline"
+        >
+          <Phone className="w-5 h-5 mb-0.5 text-emerald-600" />
+          <span className="text-[10px] tracking-tight">Clinic Dial</span>
+        </a>
+
+        {user ? (
+          <button
+            type="button"
+            onClick={() => {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-earist-crimson font-bold cursor-pointer"
+          >
+            <div className="w-5 h-5 rounded-full bg-earist-crimson text-white text-[10px] font-bold flex items-center justify-center mb-0.5">
+              {isAdmin ? 'A' : isDoctor ? 'Dr' : 'St'}
+            </div>
+            <span className="text-[10px] tracking-tight truncate max-w-[50px]">{user.first_name}</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setCurrentView('login')}
+            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+              currentView === 'login' ? 'text-earist-crimson font-bold' : 'text-slate-500 hover:text-slate-900 font-medium'
+            }`}
+          >
+            <UserCheck className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] tracking-tight">Staff Login</span>
+          </button>
+        )}
+      </nav>
     </div>
   );
 };

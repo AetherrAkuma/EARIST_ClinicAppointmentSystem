@@ -85,23 +85,42 @@ function initSchema(database) {
       appointment_date TEXT NOT NULL,
       time_slot TEXT NOT NULL,
       service_type TEXT NOT NULL,
-      status TEXT CHECK(status IN ('Pending', 'Approved', 'OnGoing', 'Completed', 'Cancelled')) DEFAULT 'Approved',
+      status TEXT CHECK(status IN ('Pending', 'Approved', 'CheckedIn', 'OnGoing', 'Completed', 'Cancelled', 'NoShow')) DEFAULT 'Approved',
       reason TEXT,
       diagnosis TEXT,
       prescription TEXT,
       dosage_instructions TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      checked_in_at DATETIME,
+      cancelled_reason TEXT,
+      rescheduled_at DATETIME,
+      reschedule_count INTEGER DEFAULT 0,
       FOREIGN KEY (assistant_id) REFERENCES assistants(assistant_id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS email_verifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL,
+      otp_code TEXT NOT NULL,
+      expires_at DATETIME NOT NULL,
+      attempts_left INTEGER DEFAULT 3,
+      is_verified INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_email_verif_lookup ON email_verifications(email, otp_code);
   `);
 
-  // Ensure patient_type check constraint includes all categories
+  // Ensure patient_type check constraint includes all categories and status includes CheckedIn and NoShow
   try {
     const tableSql = database.prepare("SELECT sql FROM sqlite_master WHERE name='appointments'").get()?.sql || '';
-    if (tableSql && !tableSql.includes('academic_non_academic')) {
+    const needsStatusMigration = tableSql && (!tableSql.includes('CheckedIn') || !tableSql.includes('NoShow'));
+    const needsPatientTypeMigration = tableSql && !tableSql.includes('academic_non_academic');
+
+    if (needsStatusMigration || needsPatientTypeMigration) {
       database.exec('PRAGMA foreign_keys = OFF;');
       database.exec(`
-        CREATE TABLE IF NOT EXISTS appointments_new (
+        CREATE TABLE IF NOT EXISTS appointments_migrated (
           appointment_id INTEGER PRIMARY KEY AUTOINCREMENT,
           reference_code TEXT UNIQUE NOT NULL,
           patient_type TEXT CHECK(patient_type IN ('student', 'faculty_staff', 'academic_non_academic', 'outsource_extension')) DEFAULT 'student',
@@ -114,6 +133,7 @@ function initSchema(database) {
           gender TEXT,
           address TEXT,
           contact_number TEXT NOT NULL,
+          email TEXT,
           symptoms TEXT,
           symptom_severity TEXT CHECK(symptom_severity IN ('Mild', 'Moderate', 'Severe')) DEFAULT 'Mild',
           allergies TEXT,
@@ -122,35 +142,50 @@ function initSchema(database) {
           appointment_date TEXT NOT NULL,
           time_slot TEXT NOT NULL,
           service_type TEXT NOT NULL,
-          status TEXT CHECK(status IN ('Pending', 'Approved', 'OnGoing', 'Completed', 'Cancelled')) DEFAULT 'Approved',
+          status TEXT CHECK(status IN ('Pending', 'Approved', 'CheckedIn', 'OnGoing', 'Completed', 'Cancelled', 'NoShow')) DEFAULT 'Approved',
           reason TEXT,
           diagnosis TEXT,
           prescription TEXT,
           dosage_instructions TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          bp_systolic INTEGER,
+          bp_diastolic INTEGER,
+          temperature REAL,
+          pulse_rate INTEGER,
+          respiratory_rate INTEGER,
+          spo2 INTEGER,
+          weight_kg REAL,
+          is_walkin INTEGER DEFAULT 0,
+          checked_in_at DATETIME,
+          cancelled_reason TEXT,
+          rescheduled_at DATETIME,
+          reschedule_count INTEGER DEFAULT 0,
           FOREIGN KEY (assistant_id) REFERENCES assistants(assistant_id) ON DELETE CASCADE
         );
-        INSERT INTO appointments_new SELECT * FROM appointments;
-        DROP TABLE appointments;
-        ALTER TABLE appointments_new RENAME TO appointments;
       `);
+
+      const currentCols = database.prepare("PRAGMA table_info(appointments);").all().map(c => c.name);
+      const colsStr = currentCols.join(', ');
+      database.exec(`INSERT INTO appointments_migrated (${colsStr}) SELECT ${colsStr} FROM appointments;`);
+      database.exec('DROP TABLE appointments;');
+      database.exec('ALTER TABLE appointments_migrated RENAME TO appointments;');
       database.exec('PRAGMA foreign_keys = ON;');
     }
   } catch (e) {
-    // Already migrated or table just created
+    console.error('Error during appointments schema check migration:', e);
   }
 
-  // Ensure email column exists in appointments table
+  // Ensure all columns exist dynamically in appointments table
   try {
     const cols = database.prepare("PRAGMA table_info(appointments);").all();
-    const hasEmail = cols.some((c) => c.name === 'email');
-    if (!hasEmail) {
+    const colNames = cols.map(c => c.name);
+
+    if (!colNames.includes('email')) {
       database.exec("ALTER TABLE appointments ADD COLUMN email TEXT;");
     }
 
     // Vitals and Walk-In columns migration
-    const colNames = cols.map(c => c.name);
-    const vitalsColumns = [
+    const additionalColumns = [
       { name: 'bp_systolic', type: 'INTEGER' },
       { name: 'bp_diastolic', type: 'INTEGER' },
       { name: 'temperature', type: 'REAL' },
@@ -158,16 +193,20 @@ function initSchema(database) {
       { name: 'respiratory_rate', type: 'INTEGER' },
       { name: 'spo2', type: 'INTEGER' },
       { name: 'weight_kg', type: 'REAL' },
-      { name: 'is_walkin', type: 'INTEGER DEFAULT 0' }
+      { name: 'is_walkin', type: 'INTEGER DEFAULT 0' },
+      { name: 'checked_in_at', type: 'DATETIME' },
+      { name: 'cancelled_reason', type: 'TEXT' },
+      { name: 'rescheduled_at', type: 'DATETIME' },
+      { name: 'reschedule_count', type: 'INTEGER DEFAULT 0' }
     ];
 
-    for (const col of vitalsColumns) {
+    for (const col of additionalColumns) {
       if (!colNames.includes(col.name)) {
         database.exec(`ALTER TABLE appointments ADD COLUMN ${col.name} ${col.type};`);
       }
     }
   } catch (e) {
-    console.error('Error adding vitals columns:', e);
+    console.error('Error adding additional appointments columns:', e);
   }
 }
 

@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Modal } from '../common/Modal';
+import { TicketQRCode } from '../common/TicketQRCode';
+import { TurnstileWidget } from '../common/TurnstileWidget';
+import { downloadICSFile, getGoogleCalendarUrl } from '../../utils/calendar';
 import {
   Calendar,
   Clock,
@@ -20,7 +23,10 @@ import {
   Zap,
   CalendarDays,
   Info,
-  CalendarCheck
+  CalendarCheck,
+  Mail,
+  Send,
+  KeyRound
 } from 'lucide-react';
 
 const getTodayString = () => {
@@ -62,17 +68,29 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
   const [loadingDoctors, setLoadingDoctors] = useState(true);
   const [isAutoFilled, setIsAutoFilled] = useState(false);
 
-  // Bot protection challenge
+  // Bot protection & Security challenge
+  const [securityChallenge, setSecurityChallenge] = useState(null);
   const [botNum1, setBotNum1] = useState(4);
   const [botNum2, setBotNum2] = useState(3);
   const [botAnswerInput, setBotAnswerInput] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState('');
   const [honeypot, setHoneypot] = useState('');
+  const turnstileRef = useRef(null);
+
+  // Email OTP verification state
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpCooldown, setOtpCooldown] = useState(0);
+  const [otpNotice, setOtpNotice] = useState('');
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
 
   // Form Fields
   const [formData, setFormData] = useState({
     patient_name: '',
     id_number: '',
-    department: 'College of Engineering (CEN)',
+    department: 'College of Computing Studies',
     course: '',
     year_section: '',
     age: '',
@@ -138,14 +156,15 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
 
   const departmentsByCat = {
     student: [
-      'College of Engineering (CEN)',
-      'College of Industrial Technology (CIT)',
-      'College of Architecture and Fine Arts (CAFA)',
-      'College of Arts and Sciences (CAS)',
-      'College of Business Administration (CBA)',
-      'College of Public Administration and Criminology (CPAC)',
-      'College of Education (CED)',
-      'College of Hospitality and Tourism Management (CHTM)',
+      'College of Computing Studies',
+      'College of Arts and Sciences',
+      'College of Business and Public Administration',
+      'College of Hospitality and Tourism Management',
+      'College of Engineering',
+      'College of Education',
+      'College of Industrial Technology',
+      'College of Criminal Justice Education',
+      'College of Architecture and Fine Arts',
       'Graduate School (GS)'
     ],
     academic_non_academic: [
@@ -320,6 +339,97 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
       .finally(() => setLoadingSlots(false));
   }, [formData.assistant_id, formData.appointment_date]);
 
+  const fetchSecurityChallenge = async () => {
+    try {
+      const res = await fetch('/api/appointments/security-challenge');
+      const data = await res.json();
+      if (data.success) {
+        setSecurityChallenge(data);
+      }
+    } catch (err) {
+      console.error('Failed to load security challenge:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen && step === 4 && !securityChallenge) {
+      fetchSecurityChallenge();
+    }
+  }, [isOpen, step, securityChallenge]);
+
+  // Cooldown timer for OTP resend
+  useEffect(() => {
+    if (otpCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setOtpCooldown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpCooldown]);
+
+  const handleSendOtp = async () => {
+    if (!formData.email || !formData.email.includes('@')) {
+      setErrorMessage('Please provide a valid email address first.');
+      return;
+    }
+    setOtpSending(true);
+    setOtpNotice('');
+    setErrorMessage('');
+    try {
+      const res = await fetch('/api/appointments/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email.trim().toLowerCase()
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to dispatch verification code.');
+      }
+      setOtpSent(true);
+      setOtpCooldown(60);
+      setOtpNotice(data.message || '6-digit verification code sent to your email.');
+    } catch (err) {
+      setErrorMessage(err.message);
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!formData.email || !formData.email.includes('@')) {
+      setErrorMessage('Please provide a valid email address.');
+      return;
+    }
+    if (!otpCode || otpCode.trim().length !== 6) {
+      setErrorMessage('Please enter the complete 6-digit code received in your email.');
+      return;
+    }
+    setVerifyingOtp(true);
+    setErrorMessage('');
+    try {
+      const res = await fetch('/api/appointments/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email.trim().toLowerCase(),
+          otp_code: otpCode.trim()
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Verification code failed.');
+      }
+      setIsEmailVerified(true);
+      setOtpNotice('Email address verified successfully!');
+      setErrorMessage('');
+    } catch (err) {
+      setErrorMessage(err.message);
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
   const toggleSymptom = (s) => {
     setFormData((prev) => {
       const exists = prev.symptoms.includes(s);
@@ -355,6 +465,13 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
         setErrorMessage('Please enter a valid email address so we can email your consultation ticket pass and reference code.');
         return;
       }
+      if (!isEmailVerified) {
+        setErrorMessage('Please verify your email address with the 6-digit code before proceeding to Complaints & Symptoms.');
+        if (!otpSent) {
+          handleSendOtp();
+        }
+        return;
+      }
       setStep(2);
     } else if (step === 2) {
       if (formData.symptoms.length === 0 && !formData.reason.trim()) {
@@ -383,9 +500,14 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
     e.preventDefault();
     setErrorMessage('');
 
-    // Check bot answer
-    if (parseInt(botAnswerInput.trim(), 10) !== botNum1 + botNum2) {
-      setErrorMessage('Verification answer was incorrect. Please solve the simple math problem.');
+    if (formData.email && !isEmailVerified) {
+      setErrorMessage('Please complete email verification before confirming your consultation.');
+      setStep(1);
+      return;
+    }
+
+    if (!turnstileToken && !botAnswerInput.trim()) {
+      setErrorMessage('Please complete the anti-bot verification check before submitting.');
       return;
     }
 
@@ -396,8 +518,14 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           website_hp: honeypot,
+          turnstile_token: turnstileToken,
+          'cf-turnstile-response': turnstileToken,
+          challenge_id: securityChallenge?.challenge_id || '',
+          expires_at: securityChallenge?.expires_at || 0,
+          signature: securityChallenge?.signature || '',
           bot_challenge_token: botNum1 + botNum2,
           bot_answer: botAnswerInput.trim(),
+          otp_code: otpCode.trim(),
           patient_type: patientType,
           patient_name: formData.patient_name,
           id_number: formData.id_number,
@@ -462,6 +590,9 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
       if (onBookingSuccess) onBookingSuccess(data.reference_code);
     } catch (err) {
       setErrorMessage(err.message);
+      turnstileRef.current?.reset();
+      setTurnstileToken('');
+      fetchSecurityChallenge();
     } finally {
       setSubmitting(false);
     }
@@ -536,34 +667,45 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-slate-400 block text-xs font-semibold uppercase">Patient Name:</span>
-                <span className="font-bold text-slate-900">{confirmedTicket.patient_name}</span>
-                <span className="text-slate-500 block font-mono text-xs">{confirmedTicket.id_number}</span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm items-center">
+              <div className="sm:col-span-2 grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-slate-400 block text-xs font-semibold uppercase">Patient Name:</span>
+                  <span className="font-bold text-slate-900">{confirmedTicket.patient_name}</span>
+                  <span className="text-slate-500 block font-mono text-xs">{confirmedTicket.id_number}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-xs font-semibold uppercase">Visitor Category:</span>
+                  <span className="font-bold text-slate-900">{getCategoryLabel(confirmedTicket.patient_type)}</span>
+                  <span className="text-slate-500 block text-xs">{confirmedTicket.department}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-xs font-semibold uppercase">Scheduled Arrival Time:</span>
+                  <span className="font-bold text-slate-900">
+                    {confirmedTicket.appointment_date} at {confirmedTicket.time_slot ? confirmedTicket.time_slot.split(' - ')[0] : ''}
+                  </span>
+                  <span className="text-xs text-slate-500 block">
+                    (Estimated 15–30 min buffer)
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-xs font-semibold uppercase">Station & Doctor:</span>
+                  <span className="font-bold text-earist-dark">
+                    Dr. {confirmedTicket.doctor?.first_name} {confirmedTicket.doctor?.last_name}
+                  </span>
+                  <span className="text-slate-500 block text-xs">
+                    {confirmedTicket.doctor?.room_number || 'Main Clinic Rm 101'}
+                  </span>
+                </div>
               </div>
-              <div>
-                <span className="text-slate-400 block text-xs font-semibold uppercase">Visitor Category:</span>
-                <span className="font-bold text-slate-900">{getCategoryLabel(confirmedTicket.patient_type)}</span>
-                <span className="text-slate-500 block text-xs">{confirmedTicket.department}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-xs font-semibold uppercase">Scheduled Arrival Time:</span>
-                <span className="font-bold text-slate-900">
-                  {confirmedTicket.appointment_date} at {confirmedTicket.time_slot ? confirmedTicket.time_slot.split(' - ')[0] : ''}
-                </span>
-                <span className="text-xs text-slate-500 block">
-                  (Estimated 15–30 min buffer)
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-xs font-semibold uppercase">Station & Doctor:</span>
-                <span className="font-bold text-earist-dark">
-                  Dr. {confirmedTicket.doctor?.first_name} {confirmedTicket.doctor?.last_name}
-                </span>
-                <span className="text-slate-500 block text-xs">
-                  {confirmedTicket.doctor?.room_number || 'Main Clinic Rm 101'}
-                </span>
+
+              {/* Fast-Check-in QR Code */}
+              <div className="flex justify-center sm:border-l sm:border-slate-200 sm:pl-4">
+                <TicketQRCode 
+                  value={confirmedTicket.reference_code} 
+                  size={100}
+                  label="Scan at Clinic Desk"
+                />
               </div>
             </div>
           </div>
@@ -577,11 +719,29 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
             </div>
           )}
 
-          <div className="flex gap-3.5 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
+            <button
+              type="button"
+              onClick={() => downloadICSFile({
+                reference_code: confirmedTicket.reference_code,
+                patient_name: confirmedTicket.patient_name,
+                id_number: confirmedTicket.id_number,
+                appointment_date: confirmedTicket.appointment_date,
+                time_slot: confirmedTicket.time_slot,
+                service_type: confirmedTicket.service,
+                doctor_first_name: confirmedTicket.doctor?.first_name,
+                doctor_last_name: confirmedTicket.doctor?.last_name,
+                room_number: confirmedTicket.doctor?.room_number
+              })}
+              className="py-3 px-3 rounded-xl text-xs sm:text-sm font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 transition-colors flex items-center justify-center gap-1.5 shadow-xs"
+            >
+              <Calendar className="w-4 h-4 text-amber-700" />
+              Add to Calendar (.ics)
+            </button>
             <button
               type="button"
               onClick={() => window.print()}
-              className="flex-1 py-3.5 rounded-xl text-sm font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+              className="py-3 px-3 rounded-xl text-xs sm:text-sm font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5 shadow-xs"
             >
               <Printer className="w-4 h-4 text-slate-500" />
               Print Clinic Pass
@@ -593,7 +753,7 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
                 setStep(1);
                 onClose();
               }}
-              className="flex-1 py-3.5 rounded-xl text-sm font-bold text-white earist-gradient hover:brightness-105 shadow-xs flex items-center justify-center gap-2 transition-colors"
+              className="py-3 px-3 rounded-xl text-xs sm:text-sm font-bold text-white earist-gradient hover:brightness-105 shadow-xs flex items-center justify-center gap-1.5 transition-colors"
             >
               Done & Close
             </button>
@@ -602,38 +762,66 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
       ) : (
         /* Multi-Stage Form */
         <div>
-          {/* Progress Indicator */}
-          <div className="flex items-center justify-between mb-8 pb-5 border-b border-slate-200 text-sm">
-            {[
-              { num: 1, label: 'Visitor Type' },
-              { num: 2, label: 'Complaints' },
-              { num: 3, label: 'Schedule' },
-              { num: 4, label: 'Confirm' }
-            ].map((s) => (
-              <div
-                key={s.num}
-                className={`flex items-center gap-2 font-bold ${
-                  step === s.num
-                    ? 'text-earist-crimson'
-                    : step > s.num
-                    ? 'text-emerald-700'
-                    : 'text-slate-400'
-                }`}
-              >
-                <span
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs ${
+          {/* Progress Indicator (Adaptive Mobile & Desktop) */}
+          <div className="mb-6 sm:mb-8 pb-4 sm:pb-5 border-b border-slate-200">
+            {/* Mobile Native Progress Header */}
+            <div className="sm:hidden space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-extrabold text-earist-crimson uppercase tracking-wider">
+                  Step {step} of 4
+                </span>
+                <span className="font-semibold text-slate-600">
+                  {step === 1 && 'Visitor Identification'}
+                  {step === 2 && 'Complaints & Symptoms'}
+                  {step === 3 && 'Doctor & Date'}
+                  {step === 4 && 'Verification & Pass'}
+                </span>
+              </div>
+              <div className="grid grid-cols-4 gap-1.5 h-1.5 rounded-full overflow-hidden">
+                {[1, 2, 3, 4].map((s) => (
+                  <div
+                    key={s}
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      step >= s ? 'bg-earist-crimson' : 'bg-slate-200'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Desktop Step Pills */}
+            <div className="hidden sm:flex items-center justify-between text-sm">
+              {[
+                { num: 1, label: 'Visitor Type' },
+                { num: 2, label: 'Complaints' },
+                { num: 3, label: 'Schedule' },
+                { num: 4, label: 'Confirm' }
+              ].map((s) => (
+                <div
+                  key={s.num}
+                  className={`flex items-center gap-2 font-bold ${
                     step === s.num
-                      ? 'bg-earist-crimson text-white shadow-xs'
+                      ? 'text-earist-crimson'
                       : step > s.num
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : 'bg-slate-100 text-slate-500'
+                      ? 'text-emerald-700'
+                      : 'text-slate-400'
                   }`}
                 >
-                  {step > s.num ? '✓' : s.num}
-                </span>
-                <span className="hidden sm:inline">{s.label}</span>
-              </div>
-            ))}
+                  <span
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs ${
+                      step === s.num
+                        ? 'bg-earist-crimson text-white shadow-xs'
+                        : step > s.num
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-slate-100 text-slate-500'
+                    }`}
+                  >
+                    {step > s.num ? '✓' : s.num}
+                  </span>
+                  <span>{s.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
           {errorMessage && (
@@ -749,7 +937,7 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
                     onChange={(e) => setFormData({ ...formData, patient_name: e.target.value })}
                     required
                     placeholder="e.g. Juan Dela Cruz"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
                   />
                 </div>
                 <div>
@@ -765,6 +953,7 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
                     value={formData.id_number}
                     onChange={(e) => setFormData({ ...formData, id_number: e.target.value })}
                     required
+                    autoCapitalize="characters"
                     placeholder={
                       patientType === 'student'
                         ? '234-0000M'
@@ -772,7 +961,7 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
                         ? 'FAC-2022-045'
                         : 'SEC-2024-012'
                     }
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson uppercase font-medium font-mono"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson uppercase font-medium font-mono"
                   />
                 </div>
               </div>
@@ -842,10 +1031,11 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">Age</label>
                   <input
                     type="number"
+                    inputMode="numeric"
                     value={formData.age}
                     onChange={(e) => setFormData({ ...formData, age: e.target.value })}
                     placeholder="20"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
                   />
                 </div>
                 <div>
@@ -853,7 +1043,7 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
                   <select
                     value={formData.gender}
                     onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson bg-white"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson bg-white"
                   >
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
@@ -866,12 +1056,13 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">Contact Phone *</label>
                   <input
-                    type="text"
+                    type="tel"
+                    inputMode="tel"
                     value={formData.contact_number}
                     onChange={(e) => setFormData({ ...formData, contact_number: e.target.value })}
                     required
                     placeholder="09XX-XXX-XXXX"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
                   />
                 </div>
                 <div>
@@ -882,12 +1073,138 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
                   <input
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, email: e.target.value });
+                      if (isEmailVerified) {
+                        setIsEmailVerified(false);
+                        setOtpSent(false);
+                        setOtpCode('');
+                        setOtpNotice('');
+                      }
+                    }}
                     required
-                    placeholder="e.g. name@earist.edu.ph"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
+                    placeholder="e.g. yourname@gmail.com or student@e-clinic.ragetech.dev"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
                   />
                 </div>
+              </div>
+
+              {/* Step 1 Email Authenticity & OTP Verification Gate */}
+              <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/90 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                    <Mail className="w-4 h-4 text-earist-crimson" />
+                    <span>Email Authenticity Verification</span>
+                  </div>
+                  {isEmailVerified ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Verified
+                    </span>
+                  ) : otpSent ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                      Code Sent to Email
+                    </span>
+                  ) : null}
+                </div>
+
+                {isEmailVerified ? (
+                  <div className="flex items-center justify-between p-3.5 rounded-xl bg-white border border-emerald-300 shadow-2xs">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0">
+                        ✓
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-900 font-mono">{formData.email}</p>
+                        <p className="text-[11px] text-emerald-700 font-medium">Email authenticated. Consultation ticket pass will be delivered here.</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEmailVerified(false);
+                        setOtpSent(false);
+                        setOtpCode('');
+                        setOtpNotice('');
+                      }}
+                      className="text-xs text-slate-500 hover:text-slate-800 font-semibold underline cursor-pointer ml-2"
+                    >
+                      Change
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      To prevent unauthorized reservations, please verify your email address before proceeding to Symptoms & Complaints:
+                    </p>
+
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                      <div className="relative flex-1">
+                        <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={6}
+                          value={otpCode}
+                          onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                          placeholder="Enter 6-digit code"
+                          className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-base sm:text-sm font-bold font-mono tracking-widest text-slate-900 placeholder:tracking-normal placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson bg-white"
+                        />
+                      </div>
+
+                      {!otpSent ? (
+                        <button
+                          type="button"
+                          onClick={handleSendOtp}
+                          disabled={otpSending || !formData.email || !formData.email.includes('@')}
+                          className="py-2.5 px-4 rounded-xl text-xs font-bold text-white earist-gradient hover:brightness-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer"
+                        >
+                          {otpSending ? (
+                            'Sending Code...'
+                          ) : (
+                            <>
+                              <Send className="w-3.5 h-3.5 text-earist-gold" />
+                              Send Verification Code
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleVerifyOtp}
+                            disabled={verifyingOtp || otpCode.length !== 6}
+                            className="py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer"
+                          >
+                            {verifyingOtp ? (
+                              'Checking...'
+                            ) : (
+                              <>
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                Verify Code
+                              </>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSendOtp}
+                            disabled={otpSending || otpCooldown > 0}
+                            className="py-2.5 px-3 rounded-xl text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 transition-all cursor-pointer"
+                          >
+                            {otpCooldown > 0 ? `${otpCooldown}s` : 'Resend'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {otpNotice && (
+                      <p className="text-xs text-emerald-700 font-medium flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        {otpNotice}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="pt-2">
@@ -1324,14 +1641,43 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
                 </div>
               </div>
 
+              {/* Verified Patient Contact Badge */}
+              <div className="p-3.5 rounded-xl bg-emerald-50/80 border border-emerald-200 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <div>
+                    <p className="text-xs font-bold text-slate-900">
+                      Email Authenticated & Ready
+                    </p>
+                    <p className="text-[11px] text-emerald-800 font-mono">
+                      {formData.email} • {formData.contact_number}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  Verified
+                </span>
+              </div>
+
               {/* Bot & Malicious Actor Filter */}
               <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-3">
-                <div className="flex items-center gap-2 text-sm font-bold text-amber-950">
-                  <ShieldCheck className="w-5 h-5 text-amber-700" />
-                  Anti-Bot & Human Verification Check
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-bold text-amber-950">
+                    <ShieldCheck className="w-5 h-5 text-amber-700" />
+                    Anti-Bot & Human Verification
+                  </div>
+                  {!turnstileToken && (
+                    <button
+                      type="button"
+                      onClick={fetchSecurityChallenge}
+                      className="text-xs text-amber-800 hover:text-amber-950 font-semibold underline cursor-pointer"
+                    >
+                      Refresh Question
+                    </button>
+                  )}
                 </div>
                 <p className="text-xs text-amber-900/90 leading-relaxed">
-                  To prevent automated spam entries and protect clinic queue integrity, please solve this simple check:
+                  To protect public booking queues against automated spam, please complete the verification below:
                 </p>
 
                 {/* Honeypot field (hidden from humans) */}
@@ -1346,19 +1692,41 @@ export const DirectBookingWizard = ({ isOpen, onClose, onBookingSuccess, initial
                   aria-hidden="true"
                 />
 
-                <div className="flex items-center gap-3">
-                  <span className="text-base font-bold text-slate-900 font-mono bg-white px-3.5 py-2 rounded-lg border border-amber-300">
-                    {botNum1} + {botNum2} = ?
-                  </span>
-                  <input
-                    type="number"
-                    value={botAnswerInput}
-                    onChange={(e) => setBotAnswerInput(e.target.value)}
-                    required
-                    placeholder="Answer"
-                    className="w-36 px-3.5 py-2 rounded-lg border border-amber-300 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/30 bg-white"
+                {/* Cloudflare Turnstile */}
+                <div className="flex justify-center sm:justify-start">
+                  <TurnstileWidget
+                    ref={turnstileRef}
+                    action="booking"
+                    onVerify={(token) => {
+                      setTurnstileToken(token);
+                      setErrorMessage('');
+                    }}
+                    onExpire={() => setTurnstileToken('')}
+                    onError={() => {}}
                   />
                 </div>
+
+                {/* Fallback Math Challenge when Turnstile is pending/not verified */}
+                {!turnstileToken && (
+                  <div className="pt-2 border-t border-amber-200/60">
+                    <p className="text-[11px] text-amber-800 mb-2 font-medium">
+                      Or solve the backup security challenge:
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-bold text-slate-900 font-mono bg-white px-3.5 py-2.5 rounded-lg border border-amber-300 shadow-xs">
+                        {securityChallenge?.question || `${botNum1} + ${botNum2} = ?`}
+                      </span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        value={botAnswerInput}
+                        onChange={(e) => setBotAnswerInput(e.target.value)}
+                        placeholder="Your answer"
+                        className="w-36 px-3.5 py-2.5 rounded-lg border border-amber-300 text-base sm:text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/30 bg-white"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3.5 pt-2">
