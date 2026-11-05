@@ -14,7 +14,7 @@ export const Modal = ({ isOpen, onClose, title, subtitle, children, maxWidth = '
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -22,37 +22,44 @@ export const Modal = ({ isOpen, onClose, title, subtitle, children, maxWidth = '
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={onClose}
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs"
           />
 
-          {/* Modal Content */}
+          {/* Modal / Bottom-Sheet Content */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 15 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 15 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className={`relative w-full ${maxWidth} bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-10 my-8`}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 30 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className={`relative w-full ${maxWidth} bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden z-10 max-h-[92vh] sm:max-h-[88vh] flex flex-col`}
           >
-            {/* Header */}
-            <div className="px-6 py-5 bg-gradient-to-r from-earist-crimson to-earist-dark text-white flex items-center justify-between border-b border-amber-500/20">
-              <div>
-                <h3 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
-                  <span className="inline-block w-2 h-2 rounded-full bg-earist-gold"></span>
-                  {title}
-                </h3>
-                {subtitle && <p className="text-xs text-amber-100/80 mt-0.5">{subtitle}</p>}
+            {/* Header with Mobile Drag Indicator */}
+            <div className="px-4 sm:px-8 pt-3 pb-4 sm:py-5 bg-[#800020] text-white flex flex-col justify-between border-b border-[#9e1b32] shrink-0">
+              {/* Drag Handle (Mobile only) */}
+              <div className="w-12 h-1.5 bg-white/30 rounded-full mx-auto mb-2 sm:hidden shrink-0" />
+
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0 pr-2">
+                  <h3 className="text-base sm:text-xl font-bold tracking-tight text-white flex items-center gap-2 truncate">
+                    <span className="inline-block w-2.5 h-2.5 rounded-full bg-earist-gold shrink-0"></span>
+                    <span className="truncate">{title}</span>
+                  </h3>
+                  {subtitle && (
+                    <p className="text-xs sm:text-sm text-amber-100/90 mt-0.5 sm:mt-1 truncate">{subtitle}</p>
+                  )}
+                </div>
+                <button
+                  onClick={onClose}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl text-amber-200 hover:text-white hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
+                  aria-label="Close modal"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button
-                onClick={onClose}
-                className="p-1.5 rounded-lg text-amber-200 hover:text-white hover:bg-white/10 transition-colors"
-                aria-label="Close modal"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
 
             {/* Body */}
-            <div className="p-6 max-h-[calc(85vh-120px)] overflow-y-auto">{children}</div>
+            <div className="p-4 sm:p-8 overflow-y-auto flex-1 overscroll-contain">{children}</div>
           </motion.div>
         </div>
       )}

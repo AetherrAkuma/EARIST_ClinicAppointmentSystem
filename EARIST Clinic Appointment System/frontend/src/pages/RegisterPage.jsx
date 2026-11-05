@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
+import { TurnstileWidget } from '../components/common/TurnstileWidget';
 import { UserPlus, Sparkles, AlertCircle, ArrowLeft, CheckCircle2 } from 'lucide-react';
 
 export const RegisterPage = ({ onNavigate }) => {
@@ -10,7 +11,7 @@ export const RegisterPage = ({ onNavigate }) => {
     last_name: '',
     email: '',
     id_number: '',
-    department: 'College of Engineering (CEN)',
+    department: 'College of Computing Studies',
     contact_number: '',
     gender: 'Male',
     age: '',
@@ -20,19 +21,23 @@ export const RegisterPage = ({ onNavigate }) => {
     password: '',
     confirm_password: ''
   });
+  const [turnstileToken, setTurnstileToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const departments = [
-    'College of Engineering (CEN)',
-    'College of Arts and Sciences (CAS)',
-    'College of Business Administration (CBA)',
-    'College of Education (CED)',
-    'College of Hospitality and Tourism Management (CHTM)',
-    'College of Architecture and Fine Arts (CAFA)',
-    'College of Industrial Technology (CIT)',
-    'College of Public Administration and Criminology (CPAC)',
-    'EARIST Faculty & Administrative Staff'
+    'College of Computing Studies',
+    'College of Arts and Sciences',
+    'College of Business and Public Administration',
+    'College of Hospitality and Tourism Management',
+    'College of Engineering',
+    'College of Education',
+    'College of Industrial Technology',
+    'College of Criminal Justice Education',
+    'College of Architecture and Fine Arts',
+    'Graduate School (GS)',
+    'EARIST Faculty & Administrative Staff',
+    'Outsource / Extension Personnel'
   ];
 
   const handleChange = (e) => {
@@ -54,7 +59,7 @@ export const RegisterPage = ({ onNavigate }) => {
 
     setLoading(true);
     try {
-      await register(formData);
+      await register({ ...formData, turnstile_token: turnstileToken });
       // AuthContext handles automatic redirect
     } catch (err) {
       setError(err.message || 'Registration failed.');
@@ -128,14 +133,14 @@ export const RegisterPage = ({ onNavigate }) => {
             {/* Email & Student ID */}
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">EARIST Email *</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Email Address *</label>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  placeholder="student.name@earist.edu.ph"
+                  placeholder="student@e-clinic.ragetech.dev or your@email.com"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
                 />
               </div>
@@ -280,6 +285,17 @@ export const RegisterPage = ({ onNavigate }) => {
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-earist-crimson"
                 />
               </div>
+            </div>
+
+            {/* Cloudflare Turnstile Verification */}
+            <div className="flex justify-center pt-2">
+              <TurnstileWidget
+                onVerify={(token) => {
+                  setTurnstileToken(token);
+                  setError('');
+                }}
+                onExpire={() => setTurnstileToken('')}
+              />
             </div>
 
             <button

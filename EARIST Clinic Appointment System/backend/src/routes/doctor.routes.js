@@ -361,8 +361,8 @@ router.put('/my/calendar-day', authenticateToken, requireRole(['assistant', 'adm
   });
 });
 
-// GET /api/doctors/:id/available-slots - Get active slots for a specific doctor & date
-router.get('/:id/available-slots', (req, res) => {
+// GET /api/doctors/:id/available-slots and /api/doctors/:id/check-date - Get active slots for a specific doctor & date
+router.get(['/:id/available-slots', '/:id/check-date'], (req, res) => {
   const { id } = req.params;
   const { date } = req.query;
   const db = getDb();
@@ -372,14 +372,28 @@ router.get('/:id/available-slots', (req, res) => {
   }
 
   const doctor = db.prepare('SELECT * FROM assistants WHERE assistant_id = ?').get(id);
-  if (!doctor || doctor.is_on_duty === 0) {
-    return res.json({ success: true, is_available: false, reason: 'Doctor is currently off-duty.', slots: [] });
+  if (!doctor || doctor.is_active === 0) {
+    return res.json({
+      success: true,
+      is_available: false,
+      message: 'Medical officer station is inactive or not found.',
+      reason: 'Medical officer station is inactive or not found.',
+      slots: [],
+      available_slots: []
+    });
   }
 
   // Check specific date override
   const override = db.prepare('SELECT * FROM doctor_custom_availability WHERE assistant_id = ? AND date = ?').get(id, date);
   if (override && override.is_available === 0) {
-    return res.json({ success: true, is_available: false, reason: 'Doctor is off-duty on this date.', slots: [] });
+    return res.json({
+      success: true,
+      is_available: false,
+      message: override.notes || 'Doctor is off-duty on this date.',
+      reason: override.notes || 'Doctor is off-duty on this date.',
+      slots: [],
+      available_slots: []
+    });
   }
 
   const defaultSlots = [
@@ -451,6 +465,151 @@ router.get('/:id/available-slots', (req, res) => {
     slot_details: slotDetails,
     booked_count: bookedAppts.length
   });
+});
+
+// GET /api/doctors/export-logsheet - Export official Daily Clinic Visit Logsheet (Medical Services)
+router.get('/export-logsheet', authenticateToken, requireRole(['assistant', 'admin']), (req, res) => {
+  const db = getDb();
+  const { category, date } = req.query;
+
+  let query = `
+    SELECT 
+      ap.appointment_id,
+      ap.reference_code,
+      ap.patient_type,
+      ap.patient_name,
+      ap.id_number,
+      ap.department,
+      ap.course,
+      ap.year_section,
+      ap.contact_number,
+      ap.email,
+      ap.symptoms,
+      ap.reason,
+      ap.appointment_date,
+      ap.time_slot,
+      ap.status,
+      d_u.first_name || ' ' || d_u.last_name AS doctor_name,
+      ast.specialization,
+      COALESCE(ap.diagnosis, '') AS diagnosis,
+      COALESCE(ap.prescription, '') AS prescription,
+      COALESCE(ap.dosage_instructions, '') AS dosage_instructions
+    FROM appointments ap
+    JOIN assistants ast ON ap.assistant_id = ast.assistant_id
+    JOIN users d_u ON ast.user_id = d_u.id
+    WHERE 1=1
+  `;
+  const params = [];
+
+  if (category && category !== 'all') {
+    query += ` AND ap.patient_type = ?`;
+    params.push(category);
+  }
+
+  if (date) {
+    query += ` AND ap.appointment_date = ?`;
+    params.push(date);
+  }
+
+  query += ` ORDER BY ap.appointment_date DESC, ap.time_slot ASC`;
+
+  const rows = db.prepare(query).all(...params);
+
+  // Exact physical logsheet header columns matching the EARIST paper forms
+  // TIME | DATE | NAME | DEPT | COMPLAINTS | MANAGEMENT | SIGNATURE | ATTENDED BY:
+  const header = [
+    'TIME',
+    'DATE',
+    'NAME',
+    'DEPT',
+    'COMPLAINTS',
+    'MANAGEMENT',
+    'SIGNATURE',
+    'ATTENDED BY',
+    'VISITOR CATEGORY',
+    'STUDENT/EMPLOYEE ID',
+    'CONTACT NUMBER',
+    'EMAIL',
+    'COURSE / DESIGNATION',
+    'REFERENCE CODE',
+    'STATUS'
+  ];
+  const csvLines = [header.join(',')];
+
+  const categoryLabel = (type) => {
+    if (type === 'student') return 'STUDENTS';
+    if (type === 'outsource_extension') return 'OUTSOURCE/EXTENSION';
+    return 'ACADEMIC/NON-ACADEMIC';
+  };
+
+  const escapeCsv = (str) => `"${String(str || '').replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`;
+
+  for (const r of rows) {
+    // 1. TIME: e.g. "09:00 AM" or time slot
+    const timeFormatted = r.time_slot ? r.time_slot.split(' - ')[0] : 'N/A';
+
+    // 2. DATE: YYYY-MM-DD
+    const dateFormatted = r.appointment_date || '';
+
+    // 3. NAME: Uppercase as explicitly instructed on the official physical logsheet (! ALL CAPITAL LETTER !)
+    const nameFormatted = (r.patient_name || '').toUpperCase();
+
+    // 4. DEPT: Department or College
+    const deptFormatted = r.department || '';
+
+    // 5. COMPLAINTS: Symptoms / chief complaints / service requests
+    const complaintsFormatted = r.symptoms || r.reason || 'General Medical Consultation';
+
+    // 6. MANAGEMENT: Prescriptions dispensed, vitals recorded, or medical interventions
+    let managementParts = [];
+    if (r.prescription && r.prescription !== 'None' && r.prescription.trim() !== '') {
+      managementParts.push(r.prescription.trim());
+    }
+    if (r.diagnosis && r.diagnosis !== 'None' && r.diagnosis.trim() !== '') {
+      managementParts.push(r.diagnosis.trim());
+    }
+    if (r.dosage_instructions && r.dosage_instructions !== 'None' && r.dosage_instructions.trim() !== '') {
+      managementParts.push(r.dosage_instructions.trim());
+    }
+    const managementFormatted = managementParts.length > 0 ? managementParts.join(' ; ') : 'Consultation / Evaluation Done';
+
+    // 7. SIGNATURE: Verified reference code stamp
+    const signatureFormatted = `[Verified: ${r.reference_code}]`;
+
+    // 8. ATTENDED BY: Doctor name
+    const docClean = (r.doctor_name || '').trim();
+    const attendedByFormatted = docClean.startsWith('Dr.') || docClean.startsWith('Dr ') ? docClean : `Dr. ${docClean}`;
+
+    // Supplementary columns
+    const categoryName = categoryLabel(r.patient_type);
+    const courseYear = [r.course, r.year_section].filter(Boolean).join(' - ') || 'N/A';
+
+    const line = [
+      escapeCsv(timeFormatted),
+      escapeCsv(dateFormatted),
+      escapeCsv(nameFormatted),
+      escapeCsv(deptFormatted),
+      escapeCsv(complaintsFormatted),
+      escapeCsv(managementFormatted),
+      escapeCsv(signatureFormatted),
+      escapeCsv(attendedByFormatted),
+      escapeCsv(categoryName),
+      escapeCsv(r.id_number),
+      escapeCsv(r.contact_number),
+      escapeCsv(r.email || ''),
+      escapeCsv(courseYear),
+      escapeCsv(r.reference_code),
+      escapeCsv(r.status)
+    ];
+    csvLines.push(line.join(','));
+  }
+
+  const categoryName = category && category !== 'all' ? category.toUpperCase() : 'ALL_VISITS';
+  const filename = `EARIST_Daily_Clinic_Visit_Logsheet_${categoryName}_${new Date().toISOString().split('T')[0]}.csv`;
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  return res.send(csvLines.join('\n'));
 });
 
 module.exports = router;

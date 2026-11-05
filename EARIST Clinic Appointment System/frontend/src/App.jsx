@@ -6,15 +6,41 @@ import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { DoctorDashboard } from './pages/DoctorDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { PatientDashboard } from './pages/PatientDashboard';
 import { DirectBookingWizard } from './components/patient/DirectBookingWizard';
 import { TrackAppointmentModal } from './components/patient/TrackAppointmentModal';
-import { HeartPulse, MapPin, Mail, Phone } from 'lucide-react';
+import { UpdateBanner } from './components/common/UpdateBanner';
+import {
+  HeartPulse,
+  MapPin,
+  Mail,
+  Phone,
+  Home,
+  CalendarCheck,
+  Search,
+  UserCheck,
+  Shield,
+  Stethoscope,
+  User
+} from 'lucide-react';
 
 const MainApp = () => {
   const { user, loading, isAdmin, isDoctor, isPatient } = useAuth();
   const [currentView, setCurrentView] = useState('home'); // 'home' | 'login'
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [isTrackOpen, setIsTrackOpen] = useState(false);
+  const [bookingInitialData, setBookingInitialData] = useState(null);
+  const [trackInitialQuery, setTrackInitialQuery] = useState('');
+
+  const handleOpenBooking = (initialData = null) => {
+    setBookingInitialData(initialData);
+    setIsBookingOpen(true);
+  };
+
+  const handleOpenTrack = (query = '') => {
+    setTrackInitialQuery(typeof query === 'string' ? query : '');
+    setIsTrackOpen(true);
+  };
 
   if (loading) {
     return (
@@ -33,14 +59,15 @@ const MainApp = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
+      <UpdateBanner />
       <Navbar
         currentTab={currentView}
         onNavigate={(view) => setCurrentView(view)}
-        onOpenBooking={() => setIsBookingOpen(true)}
-        onOpenTrack={() => setIsTrackOpen(true)}
+        onOpenBooking={() => handleOpenBooking(null)}
+        onOpenTrack={handleOpenTrack}
       />
 
-      <main className="flex-1">
+      <main className="flex-1 pb-20 sm:pb-0">
         <AnimatePresence mode="wait">
           {user ? (
             <motion.div
@@ -52,7 +79,7 @@ const MainApp = () => {
             >
               {isAdmin && <AdminDashboard />}
               {isDoctor && <DoctorDashboard />}
-              {isPatient && <DoctorDashboard />}
+              {!isAdmin && !isDoctor && <PatientDashboard />}
             </motion.div>
           ) : (
             <motion.div
@@ -65,15 +92,15 @@ const MainApp = () => {
               {currentView === 'home' && (
                 <LandingPage
                   onNavigate={(view) => setCurrentView(view)}
-                  onOpenBooking={() => setIsBookingOpen(true)}
-                  onOpenTrack={() => setIsTrackOpen(true)}
+                  onOpenBooking={() => handleOpenBooking(null)}
+                  onOpenTrack={handleOpenTrack}
                 />
               )}
               {currentView === 'login' && (
                 <LoginPage
                   onNavigate={(view) => setCurrentView(view)}
-                  onOpenBooking={() => setIsBookingOpen(true)}
-                  onOpenTrack={() => setIsTrackOpen(true)}
+                  onOpenBooking={() => handleOpenBooking(null)}
+                  onOpenTrack={handleOpenTrack}
                 />
               )}
             </motion.div>
@@ -84,12 +111,25 @@ const MainApp = () => {
       {/* Global Modals for Direct Booking and Ticket Tracking */}
       <DirectBookingWizard
         isOpen={isBookingOpen}
-        onClose={() => setIsBookingOpen(false)}
+        onClose={() => {
+          setIsBookingOpen(false);
+          setBookingInitialData(null);
+        }}
         onBookingSuccess={() => {}}
+        initialData={bookingInitialData}
       />
       <TrackAppointmentModal
         isOpen={isTrackOpen}
-        onClose={() => setIsTrackOpen(false)}
+        initialQuery={trackInitialQuery}
+        onClose={() => {
+          setIsTrackOpen(false);
+          setTrackInitialQuery('');
+        }}
+        onReschedule={(apptData) => {
+          setIsTrackOpen(false);
+          setTrackInitialQuery('');
+          handleOpenBooking(apptData);
+        }}
       />
 
       {/* Campus Footer */}
@@ -121,7 +161,7 @@ const MainApp = () => {
               </p>
               <p className="flex items-center gap-1.5 text-slate-400">
                 <Mail className="w-4 h-4 text-amber-400" />
-                <span>clinic@earist.edu.ph</span>
+                <span>clinic@e-clinic.ragetech.dev</span>
               </p>
             </div>
           </div>
@@ -132,6 +172,80 @@ const MainApp = () => {
           </div>
         </div>
       </footer>
+      {/* Native-Like Mobile Bottom Navigation Bar (App Dock) */}
+      <nav
+        aria-label="Mobile Navigation"
+        className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-3 py-1.5 flex items-center justify-around sm:hidden select-none"
+      >
+        <button
+          type="button"
+          onClick={() => {
+            setCurrentView('home');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+            currentView === 'home' && !user ? 'text-earist-crimson font-bold' : 'text-slate-500 hover:text-slate-900 font-medium'
+          }`}
+        >
+          <Home className="w-5 h-5 mb-0.5" />
+          <span className="text-[10px] tracking-tight">Home</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleOpenTrack('')}
+          className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-slate-500 hover:text-slate-900 font-medium transition-all cursor-pointer"
+        >
+          <Search className="w-5 h-5 mb-0.5" />
+          <span className="text-[10px] tracking-tight">Track Ticket</span>
+        </button>
+
+        {/* Elevated Center Booking Action Button */}
+        <button
+          type="button"
+          onClick={() => handleOpenBooking(null)}
+          className="-mt-5 w-14 h-14 rounded-full earist-gradient text-white flex flex-col items-center justify-center shadow-lg shadow-crimson-900/30 border-4 border-white active:scale-95 transition-transform cursor-pointer group"
+          aria-label="Direct Clinic Booking"
+        >
+          <CalendarCheck className="w-6 h-6 text-earist-gold group-hover:scale-110 transition-transform" />
+          <span className="text-[9px] font-extrabold text-amber-200 uppercase tracking-tighter">Book</span>
+        </button>
+
+        <a
+          href="tel:0287166273"
+          className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-emerald-700 font-medium transition-all"
+          title="Emergency Hotline"
+        >
+          <Phone className="w-5 h-5 mb-0.5 text-emerald-600" />
+          <span className="text-[10px] tracking-tight">Clinic Dial</span>
+        </a>
+
+        {user ? (
+          <button
+            type="button"
+            onClick={() => {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-earist-crimson font-bold cursor-pointer"
+          >
+            <div className="w-5 h-5 rounded-full bg-earist-crimson text-white text-[10px] font-bold flex items-center justify-center mb-0.5">
+              {isAdmin ? 'A' : isDoctor ? 'Dr' : 'St'}
+            </div>
+            <span className="text-[10px] tracking-tight truncate max-w-[50px]">{user.first_name}</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setCurrentView('login')}
+            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+              currentView === 'login' ? 'text-earist-crimson font-bold' : 'text-slate-500 hover:text-slate-900 font-medium'
+            }`}
+          >
+            <UserCheck className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] tracking-tight">Staff Login</span>
+          </button>
+        )}
+      </nav>
     </div>
   );
 };

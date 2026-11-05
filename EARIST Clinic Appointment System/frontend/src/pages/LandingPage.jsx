@@ -1,73 +1,98 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   CalendarCheck,
   Stethoscope,
   ShieldAlert,
   Clock,
-  Sparkles,
+  HeartPulse,
   HeartHandshake,
   CheckCircle2,
   MapPin,
   ArrowRight,
   PhoneCall,
-  Award
+  Award,
+  Activity,
+  Search,
+  ExternalLink,
+  AlertCircle,
+  Sparkles,
+  Calendar,
+  Building2,
+  UserCheck
 } from 'lucide-react';
 
 export const LandingPage = ({ onNavigate, onOpenBooking, onOpenTrack }) => {
+  const [activeWidgetTab, setActiveWidgetTab] = useState('tracker'); // 'tracker' | 'stations'
+  const [quickCode, setQuickCode] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [trackResult, setTrackResult] = useState(null);
+  const [trackError, setTrackError] = useState('');
+
+  const handleQuickSearch = async (targetCode) => {
+    const code = (targetCode !== undefined ? targetCode : quickCode).trim();
+    if (!code) return;
+
+    setIsSearching(true);
+    setTrackError('');
+    setTrackResult(null);
+
+    try {
+      const res = await fetch(`/api/appointments/track/${encodeURIComponent(code)}`);
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'No appointment found for this reference code.');
+      }
+      setTrackResult(data.appointment);
+    } catch (err) {
+      setTrackError(err.message || 'Unable to find appointment.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
   const services = [
     {
       icon: Stethoscope,
       title: 'General Health & Medical Triage',
-      desc: 'Comprehensive outpatient checkups, diagnosis, first-aid treatment, and campus health clearances.',
+      desc: 'Outpatient checkups, diagnostics, initial medical triage, and campus health clearances for students & personnel.',
       badge: 'Daily Consultation'
     },
     {
-      icon: Sparkles,
+      icon: Activity,
       title: 'Dental Health & Oral Care',
-      desc: 'Annual dental checkups, cleaning, oral examinations, tooth extraction, and dental health certifications.',
+      desc: 'Routine dental checkups, cleaning, oral examinations, tooth extraction, and dental health certifications.',
       badge: 'Dr. Alice Johnson'
     },
     {
       icon: Award,
       title: 'OJT & Athletic Clearances',
-      desc: 'Medical physical examinations, lab certificate assessments, and verified fitness certifications.',
+      desc: 'Medical physical examinations, lab assessment verification, and certified campus fitness clearances.',
       badge: 'Fast-Track Verification'
     },
     {
       icon: HeartHandshake,
       title: 'Student Wellness & First Aid',
-      desc: 'Emergency response, vital signs monitoring, routine health assessments, and prescription issuance.',
+      desc: 'Emergency response, vital signs & BP monitoring, first-aid interventions, and prescription issuance.',
       badge: 'Campus Care'
     }
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100">
+    <div className="min-h-screen bg-slate-50">
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-28">
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-earist-crimson/5 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-96 h-96 rounded-full bg-earist-gold/10 blur-3xl pointer-events-none" />
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="grid lg:grid-cols-12 gap-12 items-center">
+      <section className="relative pt-12 pb-16 sm:pt-16 sm:pb-24 border-b border-slate-200 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-12 gap-10 lg:gap-12 items-center">
             {/* Left Column: Heading and CTAs */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.3 }}
               className="lg:col-span-7 space-y-6"
             >
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-50 border border-red-200 text-earist-dark text-xs font-bold tracking-wide">
-                <span className="flex h-2 w-2 rounded-full bg-earist-crimson animate-pulse" />
-                OFFICIAL EARIST CAMPUS HEALTH PORTAL • DIRECT ACCESS
-              </div>
-
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.15]">
                 Modern, Fast & Accessible <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-earist-crimson via-red-800 to-amber-600">
-                  Campus Healthcare
-                </span>
+                <span className="text-earist-crimson">Campus Healthcare</span>
               </h1>
 
               <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl">
@@ -79,20 +104,20 @@ export const LandingPage = ({ onNavigate, onOpenBooking, onOpenTrack }) => {
               </p>
 
               {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-4 pt-2">
+              <div className="flex flex-wrap items-center gap-3.5 pt-2">
                 <button
                   onClick={onOpenBooking}
-                  className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl text-sm font-bold text-white earist-gradient hover:shadow-lg hover:shadow-red-950/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl text-sm font-bold text-white earist-gradient hover:brightness-105 transition-colors shadow-xs"
                 >
                   <CalendarCheck className="w-5 h-5 text-earist-gold" />
                   <span>Book Appointment Directly</span>
-                  <span className="text-[10px] bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full font-extrabold uppercase ml-1">
+                  <span className="text-xs bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full font-bold ml-1">
                     No Sign-Up
                   </span>
                 </button>
                 <button
                   onClick={onOpenTrack}
-                  className="px-6 py-3.5 rounded-xl text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 shadow-xs hover:border-slate-400 transition-all flex items-center gap-2"
+                  className="px-6 py-3.5 rounded-xl text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 shadow-xs hover:border-slate-400 transition-colors flex items-center gap-2"
                 >
                   <span>Track Ticket & Clearance Slip</span>
                   <ArrowRight className="w-4 h-4 text-slate-400" />
@@ -100,83 +125,298 @@ export const LandingPage = ({ onNavigate, onOpenBooking, onOpenTrack }) => {
               </div>
 
               {/* Highlights bar */}
-              <div className="grid grid-cols-3 gap-4 pt-6 border-t border-slate-200/80">
+              <div className="grid grid-cols-3 gap-6 pt-6 border-t border-slate-200">
                 <div>
-                  <p className="text-2xl font-extrabold text-earist-crimson">100% Free</p>
-                  <p className="text-xs text-slate-500 font-medium">For EARIST Students</p>
+                  <p className="text-2xl sm:text-3xl font-extrabold text-earist-crimson">100% Free</p>
+                  <p className="text-xs sm:text-sm text-slate-600 font-medium mt-0.5">For EARIST Students</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-extrabold text-slate-900">15 Mins</p>
-                  <p className="text-xs text-slate-500 font-medium">Average Triage Time</p>
+                  <p className="text-2xl sm:text-3xl font-extrabold text-slate-900">15 Mins</p>
+                  <p className="text-xs sm:text-sm text-slate-600 font-medium mt-0.5">Average Triage Time</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-extrabold text-earist-amber">Digital</p>
-                  <p className="text-xs text-slate-500 font-medium">Prescription & Slips</p>
+                  <p className="text-2xl sm:text-3xl font-extrabold text-amber-700">Digital</p>
+                  <p className="text-xs sm:text-sm text-slate-600 font-medium mt-0.5">Prescriptions & Slips</p>
                 </div>
               </div>
             </motion.div>
 
-            {/* Right Column: Interactive Card */}
+            {/* Right Column: Institutional Clinic Desk & Instant Slip Tracker */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18 }}
               className="lg:col-span-5"
             >
-              <div className="glass-maroon p-8 rounded-3xl text-white shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8 opacity-10">
-                  <Stethoscope className="w-40 h-40" />
+              <div className="bg-white rounded-2xl border border-slate-200 border-t-4 border-t-[#800020] shadow-lg shadow-slate-200/40 overflow-hidden">
+                {/* Desk Header */}
+                <div className="p-5 pb-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-[#800020]" />
+                      EARIST Health Services Directorate
+                    </h3>
+                    <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 font-medium">
+                      <MapPin className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      Manila Campus • Ground Flr, Main Administration Wing
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Open Today
+                  </span>
                 </div>
 
-                <div className="relative z-10 space-y-6">
-                  <div className="flex items-center justify-between border-b border-white/15 pb-4">
-                    <div>
-                      <h3 className="font-bold text-lg text-white">Clinic Hours & Location</h3>
-                      <p className="text-xs text-amber-200/80 flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3.5 h-3.5" />
-                        Ground Flr, Main Administration Wing
+                {/* Segmented Control Tabs */}
+                <div className="p-1 bg-slate-100 rounded-xl flex gap-1 mx-5 mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setActiveWidgetTab('tracker')}
+                    className={`flex-1 py-2 px-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      activeWidgetTab === 'tracker'
+                        ? 'bg-white text-[#800020] shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Search className="w-3.5 h-3.5" />
+                    Track Slip & Status
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveWidgetTab('stations')}
+                    className={`flex-1 py-2 px-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      activeWidgetTab === 'stations'
+                        ? 'bg-white text-[#800020] shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Stethoscope className="w-3.5 h-3.5" />
+                    Duty Doctors & Rooms
+                  </button>
+                </div>
+
+                {/* Tab 1: Instant Slip Tracker */}
+                {activeWidgetTab === 'tracker' && (
+                  <div className="p-5 space-y-4">
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleQuickSearch();
+                      }}
+                      className="space-y-1.5"
+                    >
+                      <label className="block text-xs font-bold text-slate-700">
+                        Reference Code or School ID Number
+                      </label>
+                      <div className="relative flex items-center">
+                        <div className="absolute left-3.5 pointer-events-none text-slate-400">
+                          <Search className="w-4 h-4" />
+                        </div>
+                        <input
+                          type="text"
+                          value={quickCode}
+                          onChange={(e) => setQuickCode(e.target.value)}
+                          placeholder="e.g. EAR-2026-A109 or 234-0000M"
+                          autoComplete="off"
+                          spellCheck="false"
+                          className="w-full pl-10 pr-24 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-earist-crimson/20 focus:border-[#800020] text-xs font-medium bg-slate-50/50 focus:bg-white transition-colors"
+                        />
+                        <button
+                          type="submit"
+                          disabled={isSearching || !quickCode.trim()}
+                          className={`absolute right-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-xs ${
+                            quickCode.trim()
+                              ? 'bg-[#800020] hover:bg-[#660019] text-white cursor-pointer'
+                              : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                          }`}
+                        >
+                          {isSearching ? '...' : 'Track'}
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Enter the reference code from your appointment ticket or registered student/faculty ID.
                       </p>
-                    </div>
-                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                      Open Today
-                    </span>
+                    </form>
+
+                    {/* Result Preview Box */}
+                    {trackResult && (
+                      <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200/90 text-xs space-y-3 animate-in fade-in duration-150">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className="font-extrabold text-slate-900 text-sm block">
+                              {trackResult.patient_name}
+                            </span>
+                            <span className="text-[11px] text-slate-600 font-medium">
+                              {trackResult.patient_type?.toUpperCase()} • {trackResult.id_number}
+                            </span>
+                          </div>
+                          <span
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide shrink-0 ${
+                              trackResult.status === 'Completed'
+                                ? 'bg-purple-100 text-purple-900 border border-purple-200'
+                                : trackResult.status === 'OnGoing'
+                                ? 'bg-amber-100 text-amber-950 border border-amber-300'
+                                : 'bg-emerald-100 text-emerald-950 border border-emerald-300'
+                            }`}
+                          >
+                            {trackResult.status}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-[11px] p-2.5 rounded-lg bg-white/90 border border-amber-200/60">
+                          <div>
+                            <span className="text-slate-400 block text-[10px] font-semibold uppercase">Station / Room</span>
+                            <span className="font-bold text-slate-800">{trackResult.room_number || 'Main Clinic Rm 101'}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[10px] font-semibold uppercase">Schedule</span>
+                            <span className="font-bold text-slate-800">{trackResult.time_slot}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => onOpenTrack(trackResult.reference_code)}
+                            className="flex-1 py-2 px-3 rounded-xl bg-[#800020] hover:bg-[#660019] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                          >
+                            <span>Open Full Printable Slip</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTrackResult(null);
+                              setQuickCode('');
+                            }}
+                            className="py-2 px-3 rounded-xl bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold border border-slate-300 transition-colors cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Error Notice */}
+                    {trackError && (
+                      <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                          <span className="font-medium">{trackError}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={onOpenBooking}
+                          className="text-xs font-bold text-[#800020] hover:underline shrink-0 cursor-pointer"
+                        >
+                          Book Slot
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Clean Helper & One-Click Test Code Box */}
+                    {!trackResult && !trackError && (
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600 space-y-2">
+                        <div className="flex items-center gap-2 font-bold text-slate-800">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span>Real-Time Appointment Tracking</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          Check your current consultation queue number, assigned doctor, and download your verified clinic slip.
+                        </p>
+                        <div className="pt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+                          <span>Quick test:</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuickCode('EAR-2026-A109');
+                              handleQuickSearch('EAR-2026-A109');
+                            }}
+                            className="font-mono font-bold text-earist-crimson hover:bg-red-50 px-2 py-0.5 rounded border border-slate-200 bg-white transition-colors cursor-pointer"
+                          >
+                            EAR-2026-A109
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuickCode('234-0000M');
+                              handleQuickSearch('234-0000M');
+                            }}
+                            className="font-mono font-bold text-earist-crimson hover:bg-red-50 px-2 py-0.5 rounded border border-slate-200 bg-white transition-colors cursor-pointer"
+                          >
+                            234-0000M
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
+                )}
 
-                  <div className="space-y-3.5 text-xs">
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-white/10 backdrop-blur-xs">
-                      <span className="flex items-center gap-2 font-medium text-amber-100">
-                        <Clock className="w-4 h-4 text-earist-gold" />
-                        Monday – Friday
-                      </span>
-                      <span className="font-bold text-white">08:00 AM – 05:00 PM</span>
+                {/* Tab 2: Duty Doctors & Rooms */}
+                {activeWidgetTab === 'stations' && (
+                  <div className="p-5 space-y-3">
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-red-50 text-earist-crimson flex items-center justify-center shrink-0 border border-red-100">
+                        <Stethoscope className="w-5 h-5 text-[#800020]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-slate-900">Main Clinic Rm 101</h4>
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            On Duty Today
+                          </span>
+                        </div>
+                        <p className="text-xs font-semibold text-slate-800 mt-0.5">
+                          Dr. Roberto Williams, MD
+                        </p>
+                        <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-slate-400" />
+                          <span>08:00 AM – 05:00 PM • General Medicine & Campus Triage</span>
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-white/10 backdrop-blur-xs">
-                      <span className="flex items-center gap-2 font-medium text-amber-100">
-                        <Sparkles className="w-4 h-4 text-earist-gold" />
-                        Dental Clinic Hours
-                      </span>
-                      <span className="font-bold text-white">08:30 AM – 04:00 PM</span>
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-800 flex items-center justify-center shrink-0 border border-amber-100">
+                        <Activity className="w-5 h-5 text-amber-700" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-slate-900">Dental Wing Rm 102</h4>
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            On Duty Today
+                          </span>
+                        </div>
+                        <p className="text-xs font-semibold text-slate-800 mt-0.5">
+                          Dr. Alice Johnson, DMD
+                        </p>
+                        <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-slate-400" />
+                          <span>08:30 AM – 04:00 PM • Dental Health & Oral Hygiene</span>
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-white/10 backdrop-blur-xs">
-                      <span className="flex items-center gap-2 font-medium text-amber-100">
-                        <ShieldAlert className="w-4 h-4 text-rose-300" />
-                        Campus Emergency Triage
-                      </span>
-                      <span className="font-bold text-emerald-300">Priority Walk-ins</span>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={onOpenBooking}
+                      className="w-full py-2.5 px-4 rounded-xl bg-[#800020] hover:bg-[#660019] text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-xs mt-2 cursor-pointer"
+                    >
+                      <CalendarCheck className="w-4 h-4 text-amber-300" />
+                      <span>Book Consultation with Duty Doctor</span>
+                    </button>
                   </div>
+                )}
 
-                  <div className="p-4 rounded-xl bg-amber-400/10 border border-amber-400/20 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-amber-400/20 flex items-center justify-center shrink-0">
-                      <PhoneCall className="w-5 h-5 text-amber-300" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-white">Emergency Campus Hotline</p>
-                      <p className="text-xs text-amber-200">(02) 8716-6273 / Local 104</p>
-                    </div>
+                {/* Desk Card Footer: Emergency */}
+                <div className="px-5 py-3 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 text-slate-600 font-medium text-[11px]">
+                    <PhoneCall className="w-3.5 h-3.5 text-[#800020] shrink-0" />
+                    <span>Emergency Hotline: <strong>(02) 8716-6273 / Ext. 104</strong></span>
                   </div>
+                  <span className="text-[11px] font-semibold text-slate-500">
+                    Mon–Fri 8AM–5PM
+                  </span>
                 </div>
               </div>
             </motion.div>
@@ -185,13 +425,13 @@ export const LandingPage = ({ onNavigate, onOpenBooking, onOpenTrack }) => {
       </section>
 
       {/* Services Grid */}
-      <section className="py-16 bg-white border-y border-slate-200">
+      <section className="py-16 sm:py-20 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-12">
             <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
               Clinical & Healthcare Services
             </h2>
-            <p className="text-sm text-slate-500 mt-2 font-medium">
+            <p className="text-base text-slate-600 mt-2 font-medium">
               Equipped with licensed medical professionals and certified campus health officers.
             </p>
           </div>
@@ -200,30 +440,28 @@ export const LandingPage = ({ onNavigate, onOpenBooking, onOpenTrack }) => {
             {services.map((item, idx) => {
               const Icon = item.icon;
               return (
-                <motion.div
+                <div
                   key={idx}
-                  whileHover={{ y: -4, scale: 1.01 }}
-                  transition={{ duration: 0.2 }}
-                  className="p-6 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-amber-300 hover:shadow-md transition-all flex flex-col justify-between"
+                  className="p-7 rounded-2xl bg-white border border-slate-200/90 hover:border-slate-300 hover:shadow-xs transition-colors flex flex-col justify-between"
                 >
                   <div className="space-y-4">
-                    <div className="w-12 h-12 rounded-xl bg-red-100/80 text-earist-crimson flex items-center justify-center shadow-xs">
+                    <div className="w-12 h-12 rounded-xl bg-red-50 text-earist-crimson flex items-center justify-center border border-red-100">
                       <Icon className="w-6 h-6" />
                     </div>
                     <div>
-                      <span className="text-[10px] font-bold tracking-wider uppercase text-earist-crimson bg-red-50 px-2 py-0.5 rounded-md border border-red-200/60">
+                      <span className="text-xs font-bold tracking-wider uppercase text-earist-crimson bg-red-50 px-2.5 py-1 rounded-md border border-red-200/60">
                         {item.badge}
                       </span>
-                      <h3 className="font-bold text-slate-900 text-base mt-2">{item.title}</h3>
-                      <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">{item.desc}</p>
+                      <h3 className="font-bold text-slate-900 text-base mt-2.5">{item.title}</h3>
+                      <p className="text-sm text-slate-600 mt-2 leading-relaxed">{item.desc}</p>
                     </div>
                   </div>
 
-                  <div className="pt-4 mt-4 border-t border-slate-200/60 flex items-center text-xs font-semibold text-earist-crimson">
-                    <span>Available Online</span>
-                    <CheckCircle2 className="w-3.5 h-3.5 ml-1.5 text-emerald-600" />
+                  <div className="pt-4 mt-6 border-t border-slate-100 flex items-center text-xs font-semibold text-earist-crimson">
+                    <span>Available On Campus</span>
+                    <CheckCircle2 className="w-4 h-4 ml-1.5 text-emerald-600" />
                   </div>
-                </motion.div>
+                </div>
               );
             })}
           </div>
